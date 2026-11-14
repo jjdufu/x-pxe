@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-style="coss" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UI Design Systems Showcase — 10大极简与工程化风格交互展示</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <!-- Mobile Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar" id="sidebar" aria-label="风格导航">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">UI</div>
+          <div class="brand-text">
+            <span class="brand-title">Design Systems</span>
+            <span class="brand-sub">10 Styles · All Controls</span>
+          </div>
+        </div>
+        <button class="icon-btn mobile-only" id="closeSidebarBtn" aria-label="关闭侧边栏">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="sidebar-search">
+        <button class="cmd-trigger" id="openCmdBtn" type="button">
+          <span class="cmd-trigger-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>快速切换风格 / 控件...</span>
+          </span>
+          <kbd>⌘K</kbd>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebarNav">
+        <!-- Populated dynamically by app.js -->
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="nav-compare-btn" id="openMatrixBtn" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>10大风格对比矩阵</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <div class="main-wrap">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn mobile-only" id="openSidebarBtn" aria-label="打开侧边栏">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="breadcrumb" id="topBreadcrumb">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="quick-jump-pills" id="quickJumpPills">
+            <a href="#sec-signature" class="jump-pill active">专属特性</a>
+            <a href="#sec-tokens-spec" class="jump-pill">CSS 标尺</a>
+            <a href="#sec-prompt" class="jump-pill">AI 提示词</a>
+            <a href="#sec-buttons" class="jump-pill">按钮与弹层</a>
+            <a href="#sec-forms" class="jump-pill">表单控件</a>
+            <a href="#sec-data" class="jump-pill">展示与导航</a>
+            <a href="#sec-table" class="jump-pill">高级表格</a>
+          </div>
+
+          <div class="divider-v"></div>
+
+          <button class="btn-ghost-sm" id="toggleTokensBtn" type="button" title="查看当前风格 CSS Tokens">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <span class="hide-sm">Tokens</span>
+          </button>
+
+          <button class="btn-ghost-sm" id="toggleThemeBtn" type="button" aria-label="切换明暗主题">
+            <svg class="sun-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            <svg class="moon-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            <span class="hide-sm" id="themeLabel">浅色</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Live Token Drawer Bar (Collapsible) -->
+      <div class="token-bar" id="tokenBar" hidden>
+        <div class="token-bar-inner" id="tokenBarInner">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Main Scrollable Canvas -->
+      <main class="canvas" id="mainCanvas">
+        <!-- Rendered dynamically by components.js / app.js -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Global Command Palette (⌘K) -->
+  <div class="modal-backdrop" id="cmdModal" hidden>
+    <div class="cmd-dialog" role="dialog" aria-modal="true" aria-label="命令面板">
+      <div class="cmd-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="cmdSearchInput" placeholder="输入风格名称、组件控件或操作（如：tremor, kibo, 主题, 表格）..." autocomplete="off" />
+        <kbd>ESC</kbd>
+      </div>
+      <div class="cmd-list" id="cmdList"></div>
+    </div>
+  </div>
+
+  <!-- Interactive Modal Demo -->
+  <div class="modal-backdrop" id="demoModal" hidden>
+    <div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="demoModalTitle">
+      <div class="ui-dialog-header">
+        <div>
+          <h3 id="demoModalTitle">创建新工作区</h3>
+          <p class="muted-text">此弹窗实时继承当前选中的设计系统 Token 与圆角规范。</p>
+        </div>
+        <button class="icon-btn" data-close-modal="demoModal" aria-label="关闭弹窗">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="ui-dialog-body">
+        <div class="form-field">
+          <label class="ui-label" for="modalProjectName">项目名称</label>
+          <input class="ui-input" id="modalProjectName" type="text" value="acme-design-system" />
+        </div>
+        <div class="form-field">
+          <label class="ui-label" id="modalVisibilityLabel">可见性</label>
+          <div class="ui-select" data-select id="modalVisibilitySelect" data-value="private">
+            <button type="button" class="ui-select-trigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="modalVisibilityLabel">
+              <span class="ui-select-value">私有团队 (Private)</span>
+              <svg class="ui-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="ui-select-menu" role="listbox" hidden>
+              <button type="button" class="ui-select-option selected" role="option" aria-selected="true" data-value="private"><span>私有团队 (Private)</span><span class="ui-select-check">✓</span></button>
+              <button type="button" class="ui-select-option" role="option" aria-selected="false" data-value="internal"><span>组织内部 (Internal)</span><span class="ui-select-check">✓</span></button>
+              <button type="button" class="ui-select-option" role="option" aria-selected="false" data-value="public"><span>公开开源 (Public MIT)</span><span class="ui-select-check">✓</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ui-dialog-footer">
+        <button class="ui-btn ui-btn-outline" data-close-modal="demoModal" type="button">取消</button>
+        <button class="ui-btn ui-btn-primary" id="confirmDemoModalBtn" type="button">确认创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Destructive AlertDialog Demo -->
+  <div class="modal-backdrop" id="alertDialogModal" hidden>
+    <div class="ui-dialog" role="alertdialog" aria-modal="true" aria-labelledby="alertDialogTitle" aria-describedby="alertDialogDesc">
+      <div class="ui-dialog-header">
+        <div>
+          <span class="ui-badge ui-badge-danger" style="margin-bottom:6px">高危操作 · AlertDialog</span>
+          <h3 id="alertDialogTitle">确认删除该组件记录？</h3>
+        </div>
+      </div>
+      <div class="ui-dialog-body">
+        <p id="alertDialogDesc" class="muted-text" style="font-size:13.5px;line-height:1.6">
+          此操作属于不可逆破坏性变更（AlertDialog 与普通 Modal 的区别在于强制用户明确确认、点击遮罩不会意外关闭）。<span id="alertDialogTarget"></span>
+        </p>
+      </div>
+      <div class="ui-dialog-footer">
+        <button class="ui-btn ui-btn-outline" data-close-modal="alertDialogModal" type="button">取消保留</button>
+        <button class="ui-btn ui-btn-danger" id="confirmAlertDialogBtn" type="button">确认永久删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Drawer / Sheet Demo -->
+  <div class="modal-backdrop drawer-backdrop" id="demoDrawer" hidden>
+    <div class="ui-drawer" role="dialog" aria-modal="true" aria-labelledby="demoDrawerTitle">
+      <div class="ui-dialog-header">
+        <div>
+          <h3 id="demoDrawerTitle">组件配置抽屉 (Sheet / Drawer)</h3>
+          <p class="muted-text">支持键盘 ESC 关闭、焦点管理与遮罩点击关闭。</p>
+        </div>
+        <button class="icon-btn" data-close-modal="demoDrawer" aria-label="关闭抽屉">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="ui-drawer-body">
+        <div class="ui-alert ui-alert-info">
+          <div class="ui-alert-title">当前风格已同步</div>
+          <div class="ui-alert-desc">所有表单、开关与间距均由当前风格 CSS Variables 驱动。</div>
+        </div>
+        <div class="form-field">
+          <label class="ui-label">自动同步 Figma Tokens</label>
+          <div class="row-between">
+            <span class="muted-text">保存时自动导出 JSON 变量</span>
+            <button type="button" class="ui-switch" role="switch" aria-checked="true" data-switch></button>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="ui-label">启用无障碍键盘导航增强</label>
+          <div class="row-between">
+            <span class="muted-text">强制显示 Focus-Visible 轮廓</span>
+            <button type="button" class="ui-switch" role="switch" aria-checked="true" data-switch></button>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="ui-label" for="drawerNotes">备注信息</label>
+          <textarea class="ui-textarea" id="drawerNotes" rows="4" placeholder="输入配置变更说明..."></textarea>
+        </div>
+      </div>
+      <div class="ui-dialog-footer">
+        <button class="ui-btn ui-btn-outline" data-close-modal="demoDrawer" type="button">关闭</button>
+        <button class="ui-btn ui-btn-primary" id="saveDrawerBtn" type="button">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Context Menu (Right-click Demo) -->
+  <div class="ui-dropdown-menu ui-context-menu" id="customContextMenu" role="menu" hidden>
+    <button type="button" class="ui-dropdown-item" role="menuitem" data-ctx-action="inspect"><span>检查组件 Token</span><kbd>⌘I</kbd></button>
+    <button type="button" class="ui-dropdown-item" role="menuitem" data-ctx-action="copy-prompt"><span>复制当前风格提示词</span><kbd>⌘P</kbd></button>
+    <button type="button" class="ui-dropdown-item" role="menuitem" data-ctx-action="toggle-theme"><span>切换浅色 / 深色模式</span><kbd>⌘L</kbd></button>
+    <div class="ui-dropdown-divider"></div>
+    <button type="button" class="ui-dropdown-item danger" role="menuitem" data-ctx-action="reset"><span>重置当前示例状态</span><kbd>⌫</kbd></button>
+  </div>
+
+  <!-- Toast Stack Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="components.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

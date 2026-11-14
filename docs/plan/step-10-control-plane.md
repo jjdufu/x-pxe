@@ -86,7 +86,7 @@ xpxe-control version                    # 版本、提交、构建时间、rustc
 | `timeouts` | 每个带超时的状态拨动时钟后进入期望状态；迟到的回调被拒为 `StaleSession` |
 | `redfish` | 模拟 BMC：probe 不带凭据 → trust → deploy 七步 → `installer.started` 后收到 EjectMedia；错误指纹时 deploy 失败；固件为 BIOS 的 Redfish 节点在 arm 时被拒绝 |
 | `security` | 无会话 401；viewer arm 403；缺 CSRF 403；令牌跨种类、过期、会话关闭后均拒绝；登录退避；引导端口访问 `/api/v1/nodes` 返回 404 |
-| `admin_transport` | 未配置证书：管理端为 HTTP，`Set-Cookie` 含 `HttpOnly`、`SameSite=Strict`，不含 `Secure`，无 HSTS 头；配置测试证书（rcgen）：同一端口为 HTTPS，Cookie 含 `Secure`，响应带 HSTS；只配置证书或只配置私钥时启动失败 |
+| `admin_transport` | 未配置证书：管理端为 HTTP，`Set-Cookie` 含 `HttpOnly`、`SameSite=Strict`，不含 `Secure`，无 HSTS 头；配置测试证书（`tests/fixtures/tls/`）：同一端口为 HTTPS，Cookie 含 `Secure`，响应带 HSTS；只配置证书或只配置私钥时启动失败 |
 | `versioning` | 配置并发修改 409；回滚；进行中的会话不受新版本影响 |
 | `bootnet_failsafe` | 停止控制面的内部 API，拨动时钟 30 s 后 bootnet 指令表为空 |
 | `audit` | 以上场景结束后 `audit verify` 通过 |

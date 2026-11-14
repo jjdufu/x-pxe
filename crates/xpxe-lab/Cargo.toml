@@ -1,0 +1,47 @@
+[package]
+name = "xpxe-lab"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "x-pxe 实验室探针与依赖预检"
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tokio.workspace = true
+axum.workspace = true
+tower-http.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+hyper-rustls.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+bytes.workspace = true
+tower.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+ring.workspace = true
+webpki-roots.workspace = true
+socket2.workspace = true
+minijinja.workspace = true
+sha2.workspace = true
+hex.workspace = true
+base64.workspace = true
+lzma-rs.workspace = true
+flate2.workspace = true
+rusqlite.workspace = true
+argon2.workspace = true
+chacha20poly1305.workspace = true
+sha-crypt.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+time.workspace = true

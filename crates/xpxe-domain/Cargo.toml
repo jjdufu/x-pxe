@@ -1,0 +1,17 @@
+[package]
+name = "xpxe-domain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "x-pxe 纯领域模型：ID、MAC、架构、节点状态机、引导决策、配置版本与初始化模块 schema"
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

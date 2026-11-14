@@ -1,0 +1,17 @@
+[package]
+name = "xpxe-dhcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "x-pxe ProxyDHCP 报文解析与应答决策"
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

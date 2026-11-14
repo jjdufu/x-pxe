@@ -1,0 +1,17 @@
+[package]
+name = "xpxe-render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "x-pxe 渲染器：iPXE 脚本、内核参数、preseed、选盘脚本、初始化模块脚本"
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

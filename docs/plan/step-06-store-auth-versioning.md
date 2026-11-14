@@ -70,7 +70,7 @@ pub fn resolve(token: &str) -> Option<(SessionId, TokenKind)>;   // 常量时间
 pub fn consume_once(session, Doc::Preseed | Doc::Plan) -> Result<(), AlreadyServed>;
 ```
 
-- 令牌为 32 字节 CSPRNG（`rand_core::OsRng`），base64url 无填充，库里只存 SHA-256。
+- 令牌为 32 字节 CSPRNG（`ring::rand::SystemRandom`），base64url 无填充，库里只存 SHA-256。
 - `resolve` 只接受未过期、未关闭会话的令牌；`Boot` 令牌只能访问 iPXE 脚本、内核、initrd、preseed、ISO、仓库公钥；`Agent` 令牌只能访问 agent、计划与事件端点。
 - `consume_once` 用 `UPDATE … SET preseed_served_at = ? WHERE preseed_served_at IS NULL` 原子实现一次性。
 

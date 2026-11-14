@@ -1,0 +1,7 @@
+target
+web/node_modules
+web/dist
+lab/work
+lab/out
+.git
+**/.DS_Store

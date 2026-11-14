@@ -1,0 +1,17 @@
+[package]
+name = "xpxe-assets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "x-pxe 资产获取与校验：哈希、OpenPGP 签名、Debian Release、内核版本"
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

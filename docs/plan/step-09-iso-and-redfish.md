@@ -10,7 +10,7 @@ Redfish 通道只走一条路径，且只支持 UEFI 固件：每次装机会话
 
 ```text
 boot.iso（ISO9660，卷标 XPXE-<会话前 8 位>）
-└── esp.img                       FAT（fatfs 在内存中新建）：
+└── esp.img                       FAT（`xpxe-image` 在内存中新建）：
                                     EFI/BOOT/BOOTX64.EFI   当前会话固定的 ipxe.efi
                                     EFI/BOOT/autoexec.ipxe 会话脚本
                                   El Torito 引导目录只有一项：平台 0xEF（UEFI）、no-emulation，指向 esp.img
@@ -22,7 +22,7 @@ boot.iso（ISO9660，卷标 XPXE-<会话前 8 位>）
 
 - 固件使用 `ipxe_efi_x64` 资产在本次会话中固定的版本，与 LAN 路径同一份文件。
 - 生成是确定性的：所有时间戳取会话创建时间，同一会话重复生成得到相同字节；结果缓存在 `/data/cache/iso/<session>.iso`，会话关闭即删除。
-- ISO 写入使用 `hadris-iso`（Step 2 H13 验证）；FAT 使用 `fatfs` 在内存中格式化（按大小自动选择 FAT12/16）。
+- ISO 由 `xpxe-image` 的 ISO9660 + El Torito 写出器生成（Step 2 H13 验证）；FAT 由 `xpxe-image` 的 FAT 写出器在内存中格式化（按大小自动选择 FAT12/16）。
 
 ### 2.2 `autoexec.ipxe`
 
@@ -105,10 +105,10 @@ pub struct VendorProfile {
 
 | 测试 | 内容 |
 | :--- | :--- |
-| ISO 结构 | 生成后用 `hadris-iso` 读回：卷标、文件树、El Torito 只有一项且平台为 0xEF、`esp.img` 内两份文件与字节一致 |
+| ISO 结构 | 生成后用 `xpxe-image` 的读回解析器（独立于写出器实现）读回：卷标、文件树、El Torito 只有一项且平台为 0xEF、`esp.img` 内两份文件与字节一致 |
 | 确定性 | 同一输入两次生成字节一致 |
 | `autoexec.ipxe` 快照 | DHCP / 静态两种 |
-| 证书固定 | 测试内 HTTPS 服务（rcgen）：正确指纹通过、错误指纹失败、`probe` 请求不含 `Authorization` 头 |
+| 证书固定 | 测试内 HTTPS 服务（`tests/fixtures/tls/` 测试证书）：正确指纹通过、错误指纹失败、`probe` 请求不含 `Authorization` 头 |
 | Redfish 流程 | 测试内模拟 BMC（axum），按每个厂商画像模拟资源布局与差异：VirtualMedia 在 System/Manager 下、需先弹出、202 + Task、401、`ExtendedInfo` 错误、`Inserted` 延迟变为 true |
 | DMTF Mockup | 用 DMTF 公开的 Redfish Mockup（`public-rackmount1` 等）做资源发现回归 |
 

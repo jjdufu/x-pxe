@@ -204,7 +204,7 @@ B1–B6、U1–U6、W1–W2、X1–X2 的每个首包与关键包都保存为夹
 | H10 | `dists/trixie/InRelease` 的 `SHA256` 段列出 `main/installer-amd64/current/images/SHA256SUMS`，后者覆盖 `netboot/debian-installer/amd64/linux` 与 `initrd.gz` | 下载并离线校验 | 校验 `netboot.tar.gz` 后再解包 |
 | H11 | 从 bzImage 头（`kernel_version` 偏移 0x20E）读出的版本字符串可与镜像源 `kernel-image-<abi>-di` udeb 对齐 | 读取 trixie netboot `linux` | 解析 initrd 中 `lib/modules/<abi>` 目录名 |
 | H12 | sushy-tools 的 VirtualMedia 行为（Systems 下 vs Managers 下、`TransferProtocolType`）与 iDRAC/iLO 的差异可被一个“厂商画像”结构覆盖 | 对照 DMTF 规范与厂商文档建表 | - |
-| H13 | `hadris-iso` 写出的 ISO（单个 UEFI 0xEF no-emulation 项指向 FAT 镜像）能在 OVMF 启动 | R1 | 自写最小 ISO9660 + El Torito 写入器（单层目录，约 400 行），选型写入结论 |
+| H13 | `xpxe-image` 自写的 ISO9660 + El Torito 写出器生成的 ISO（单个 UEFI 0xEF no-emulation 项指向 FAT 镜像）能在 OVMF 启动 | R1 | 调整 ISO 布局（ESP 对齐、引导目录位置）直到 OVMF 接受，结论写入结论表 |
 | H14 | 内核 ≥ 5.7 时，`SO_BINDTODEVICE` 不需要 `NET_RAW`（box 内核 6.12） | 在 UID 10001 + 仅 `NET_BIND_SERVICE` 下运行 `xpxe-lab proxydhcp`（`sudo setpriv --reuid 10001 --inh-caps +net_bind_service --ambient-caps +net_bind_service`） | compose 为 bootnet 追加 `NET_RAW` 并在文档写明 |
 | H15 | `ipxe.lkrn` 提供的 PXE API 足以运行 `undionly.kpxe`（B6 第②步） | B6 | B6 第②步只断言 TFTP 传输字节一致，BIOS 非 iPXE 链路的端到端验证列入真实硬件可选项 |
 | H16 | OVMF 的 `opt/org.tianocore/IPv4PXESupport=n` 关闭 PXE 启动项后只剩 HTTP Boot | W1–W2 启动菜单与抓包 | 用 `virt-fw-vars` 编辑 VARS 中的启动顺序 |

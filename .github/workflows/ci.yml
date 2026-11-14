@@ -1,0 +1,107 @@
+# CI：每次推送与 PR 都跑，只做校验，绝不推送镜像。
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  rust-gate:
+    name: Rust 门禁（scripts/gate.sh，锁定 1.100.0）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 安装 musl 工具链（rusqlite bundled 静态链接需要）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq musl-tools
+      - name: 安装锁定工具链（rust-toolchain.toml）
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustc --version
+          cargo clippy --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: cargo-${{ runner.os }}-1.100.0-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-1.100.0-
+      - name: 门禁（lint-guard、fmt、clippy、doc、单元/集成/doctest）
+        run: scripts/gate.sh
+      - name: 依赖树压平（multiple_crate_versions 的直观核对）
+        run: |
+          out="$(cargo tree -d --locked --target all -e normal,build,dev 2>/dev/null | grep -E '^[a-z]' || true)"
+          if [ -n "$out" ]; then echo "$out"; exit 1; fi
+      - name: musl 静态构建与依赖预检
+        run: |
+          cargo build --locked --target x86_64-unknown-linux-musl --workspace --bins
+          cargo run --locked -p xpxe-lab -- deps-check
+
+  web-gate:
+    name: Web 门禁（scripts/web-gate.sh）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Web 门禁
+        run: scripts/web-gate.sh
+
+  docker-build:
+    name: 镜像构建（不推送）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: [rust-gate, web-gate]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: 构建 deploy/Dockerfile（push: false）
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: false
+          load: true
+          tags: xpxe:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: 镜像冒烟
+        run: docker run --rm xpxe:ci --version
+
+  lab:
+    name: KVM 实验室（仅在 /dev/kvm 可用时运行）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: [rust-gate]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 检测 KVM 与实验室脚本
+        id: probe
+        run: |
+          if [ -e /dev/kvm ] && [ -x lab/ci.sh ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=实验室已跳过::托管 runner 上没有可用的 /dev/kvm 或尚无 lab/ci.sh。KVM 引导矩阵只在开发机上运行（lab/run.sh），结果记录在 lab/results/。"
+          fi
+      - name: 运行实验室冒烟
+        if: steps.probe.outputs.run == 'true'
+        run: lab/ci.sh

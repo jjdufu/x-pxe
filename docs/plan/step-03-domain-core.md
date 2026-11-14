@@ -129,7 +129,7 @@ pub fn diff(a: &CanonicalJson, b: &CanonicalJson) -> Vec<Change>;   // Change { 
 ```bash
 cargo test -p xpxe-domain --all-targets --locked
 cargo test -p xpxe-domain --doc --locked
-! cargo tree -p xpxe-domain -e normal | grep -qE 'tokio|reqwest|rusqlite'   # 领域层无 I/O 依赖
+! cargo tree -p xpxe-domain -e normal | grep -qE 'tokio|hyper|rusqlite'   # 领域层无 I/O 依赖
 scripts/gate.sh
 ```
 
@@ -137,5 +137,5 @@ scripts/gate.sh
 
 - 77 个状态×事件组合全部有显式断言。
 - 所有 Step 2 夹具都有对应的决策断言。
-- `xpxe-domain` 的正常依赖中不出现 tokio、reqwest、rusqlite。
+- `xpxe-domain` 的正常依赖中不出现 tokio、hyper、rusqlite。
 - `scripts/gate.sh` 全绿。

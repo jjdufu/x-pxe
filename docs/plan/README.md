@@ -161,10 +161,10 @@ x-pxe/
 ├── crates/
 │   ├── xpxe-domain/        纯领域：ID/MAC/架构类型、节点状态机、引导决策、配置版本、初始化模块 schema、校验
 │   ├── xpxe-render/        minijinja 渲染：iPXE 脚本、内核参数、preseed、选盘脚本、模块脚本、systemd 单元
-│   ├── xpxe-dhcp/          ProxyDHCP 报文解析与应答决策（dhcproto），纯逻辑 + 传输 trait
+│   ├── xpxe-dhcp/          DHCPv4 编解码（自研，无第三方依赖）、ProxyDHCP 应答决策，纯逻辑 + 传输 trait
 │   ├── xpxe-tftp/          只读 TFTP（RFC 1350/2347/2348/2349/7440）协议状态机与 tokio 传输
-│   ├── xpxe-image/         ISO9660 + El Torito 封装、FAT ESP 镜像（fatfs）
-│   ├── xpxe-assets/        下载/上传/校验：sha2、reqwest+rustls、OpenPGP（pgp）、Release/SHA256SUMS、bzImage 版本
+│   ├── xpxe-image/         ISO9660 + El Torito 写出器、FAT12/16 ESP 镜像写出器（均为自研纯 Rust）
+│   ├── xpxe-assets/        下载/上传/校验：sha2、hyper+rustls、OpenPGP 签名验证子集（ring）、Release/SHA256SUMS、bzImage 版本
 │   ├── xpxe-redfish/       Redfish 客户端、厂商差异、rustls 证书指纹固定
 │   ├── xpxe-store/         SQLite、迁移、配置版本链、审计哈希链、密钥封装（XChaCha20-Poly1305）
 │   ├── xpxe-control/       bin：axum 控制面（管理端/引导端/内部 API 三个监听）

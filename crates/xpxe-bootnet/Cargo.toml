@@ -1,0 +1,17 @@
+[package]
+name = "xpxe-bootnet"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "x-pxe 引导网络进程：ProxyDHCP 与只读 TFTP"
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

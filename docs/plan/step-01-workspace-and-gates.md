@@ -28,31 +28,34 @@
 
 ### 3.2 依赖白名单与特性收敛
 
-所有依赖写在 `[workspace.dependencies]`，成员 crate 只用 `foo.workspace = true`。`multiple_crate_versions` 的目标是依赖树完全压平（每个 crate 只有一个版本），为此统一关闭默认特性、按需开启：
+所有依赖写在 `[workspace.dependencies]`，成员 crate 只用 `foo.workspace = true`。`multiple_crate_versions` 的目标是依赖树完全压平（每个 crate 只有一个版本）。注意 clippy 依据 `cargo metadata` 的全平台解析结果判断重复，Windows 专用依赖（`windows-sys`）和过程宏的 `syn` 也计入；另外 Cargo 会把弱依赖特性（`ring?/alloc`）引用的可选依赖写进锁文件，所以 `rustls-webpki` 无论选哪种 crypto provider 都会把 `ring` 带进解析结果。依赖选型因此以 `ring 0.17` 的依赖代际（`getrandom 0.2`、`windows-sys 0.52`）为基准，统一关闭默认特性、按需开启：
 
-| 依赖 | 用于 | 特性约束 |
+| 依赖 | 用于 | 版本与特性约束 |
 | :--- | :--- | :--- |
-| `tokio` | 全部异步 | `rt-multi-thread, net, time, fs, io-util, macros, signal, sync` |
-| `axum`、`tower-http` | 控制面 | `tower-http` 只开 `trace, limit, set-header` |
-| `reqwest` | 资产下载、Redfish | `default-features = false, features = ["rustls-tls-webpki-roots-no-provider", "stream", "json"]`，显式选 `rustls` 的 `ring` provider |
-| `rustls`、`tokio-rustls` | 管理端可选 HTTPS、Redfish 证书固定 | 单一 crypto provider（`ring`） |
-| `rcgen`（仅 `dev-dependencies`） | 测试内生成 HTTPS 证书 | 与 `rustls` 共用 `ring` |
-| `dhcproto` | DHCP 报文 | 默认关闭 serde |
-| `socket2` | `SO_BROADCAST`、`SO_BINDTODEVICE`、`IP_PKTINFO` | - |
-| `minijinja` | 模板 | `builtins, loader` 关闭，模板 `include_str!` 编入 |
-| `fatfs` | ESP 镜像 | `std, alloc` |
-| `hadris-iso` | ISO 读写（Step 2 评估后定稿） | `write, read` |
-| `sha2`、`hex`、`base64` | 哈希与编码 | - |
-| `pgp` | Debian InRelease 签名验证（纯 Rust） | - |
+| `tokio` | 全部异步 | `~1.46`：`rt-multi-thread, net, time, fs, io-util, signal, sync`。1.47 起改用 `windows-sys 0.59+`，与 `ring` 冲突 |
+| `axum`、`tower`、`tower-http` | 控制面 | `axum 0.8` 只开 `http1, tokio, json, query, form, matched-path, original-uri`；`tower-http 0.7` 只开 `trace, limit, set-header` |
+| `hyper`、`hyper-util`、`http`、`http-body-util`、`bytes` | 资产下载、Redfish 的 HTTP 客户端，管理端 HTTPS 的连接层 | `hyper-util` 锁 `0.1.16`（之后的版本要求 `socket2 0.6`），只开 `tokio, client-legacy, http1` |
+| `hyper-rustls`、`rustls`、`tokio-rustls`、`webpki-roots` | HTTPS 客户端、管理端可选 HTTPS、Redfish 证书固定 | 单一 crypto provider `ring`；根证书用内嵌的 `webpki-roots`（`FROM scratch` 镜像里没有系统证书库） |
+| `ring` | 随机数（`SystemRandom`）、SHA-256/512、OpenPGP 签名中的 RSA PKCS#1 v1.5 与 Ed25519 验证 | `std, alloc` |
+| `socket2` | `SO_BROADCAST`、`SO_BINDTODEVICE`、`IP_PKTINFO` | `~0.5.10`，`all` |
+| `minijinja` | 模板 | `3.x`，关闭默认特性，只开 `serde`；模板 `include_str!` 编入 |
+| `sha2`、`hex`、`base64` | 哈希与编码 | `sha2 0.11`、`base64 0.23` |
 | `lzma-rs`、`flate2`（`rust_backend`） | `Packages.xz`/`.gz`、initrd 识别 | - |
 | `rusqlite` | 存储 | `bundled`（静态编入 SQLite，构建期需要 `musl-tools`，运行期零依赖） |
-| `argon2`、`chacha20poly1305`、`rand_core`、`sha-crypt` | 口令、密钥封装、随机数、`$6$` 哈希 | - |
-| `serde`、`serde_json` | 序列化 | - |
-| `tracing`、`tracing-subscriber` | 日志（替代 `print_stdout`） | `fmt, json, env-filter` |
+| `argon2`、`chacha20poly1305`、`sha-crypt` | 口令、密钥封装、`$6$` 哈希 | `argon2 0.6`、`chacha20poly1305 0.11`、`sha-crypt 0.6`，都关闭 `getrandom` 特性，盐与 nonce 由 `ring::rand::SystemRandom` 生成 |
+| `serde`、`serde_json` | 序列化 | `serde ~1.0.228`：之后的 `serde_derive` 改用 `syn 3`，而 `tokio-macros`（`axum` 的 `tokio` 特性引入）仍是 `syn 2` |
+| `tracing`、`tracing-subscriber` | 日志（替代 `print_stdout`） | `fmt, json, env-filter, std`，不开 `ansi` |
 | `time` | 时间戳 | `serde, formatting, parsing` |
-| `uuid` | ID | `v7` |
 
-不选 `sequoia-openpgp`：其默认后端依赖 nettle（C 库），与静态 musl、零系统依赖的目标冲突；`pgp`（rPGP）纯 Rust，覆盖 Debian 归档密钥使用的 RSA 4096 与 Ed25519。
+以下能力在项目内自行实现，不引入第三方 crate：
+
+| 能力 | 实现位置 | 不用现成 crate 的原因 |
+| :--- | :--- | :--- |
+| DHCPv4 报文编解码 | `xpxe-dhcp` | `dhcproto` 引入 `hickory-proto`、`rand 0.10` 与 `syn 2` 过程宏，依赖树无法与其余部分压平；特权进程 `xpxe-bootnet` 的解析面也应尽量小。BOOTP 定长头 + TLV 选项，约 400 行，配合抓包夹具与模糊输入测试 |
+| ISO9660 + El Torito、FAT12/16 ESP 镜像 | `xpxe-image` | `fatfs 0.3` 依赖 `bitflags 1`；`hadris-iso`/`hadris-fat` 引入 `chrono` 时钟（Windows 下 `windows-core`）、`rand` 与 `syn 3` 派生宏。引导 ISO 结构固定（少量文件 + 一个 ESP 引导映像），自写写出器可完全控制布局 |
+| OpenPGP 签名验证子集 | `xpxe-assets` | rPGP（`pgp`）自带两代 RustCrypto 依赖并存，无法压平；`sequoia-openpgp` 默认依赖 nettle（C 库）。Debian `InRelease` 只需要“v4 签名包 + RSA/Ed25519 公钥 + SHA-256/512”这一子集，用 `ring` 完成密码学部分 |
+| UUIDv7 | `xpxe-store` | `uuid 1.x` 新版依赖 `getrandom 0.4`；UUIDv7 = 48 bit 毫秒时间戳 + 74 bit 随机数，十几行即可 |
+| 测试用 TLS 证书 | 夹具 `tests/fixtures/tls/` | `rcgen` 引入 `thiserror 2`、`displaydoc`（`syn 3`）。测试证书一次性生成后入库，只用于测试 |
 
 ### 3.3 依赖预检
 

@@ -29,7 +29,7 @@
 ### 4.1 收包与判定
 
 - socket：`0.0.0.0:67` 与 `0.0.0.0:4011`，`SO_REUSEADDR`、`SO_BROADCAST`、`SO_BINDTODEVICE(iface)`、`IP_PKTINFO`（取得收包网卡与目的地址）。
-- 解析（`dhcproto`）：`op`、`xid`、`flags`、`ciaddr`、`giaddr`、`chaddr`，选项 53、55、60、77、93、94、97、175。报文 > 1500 字节或解析失败直接丢弃并计数。
+- 解析（`xpxe-dhcp` 自研编解码）：`op`、`xid`、`flags`、`ciaddr`、`giaddr`、`chaddr`，选项 53、55、60、77、93、94、97、175。报文 > 1500 字节或解析失败直接丢弃并计数。
 - 判定调用 `xpxe_domain::decision::answer`（Step 3），任何 `Ignore` 都写观测（MAC、架构、user-class、原因），供 Web “发现未登记的 MAC”。
 - 限速：每 MAC 每分钟最多 20 个应答，全局每秒 200 个报文；超出丢弃并计数。
 

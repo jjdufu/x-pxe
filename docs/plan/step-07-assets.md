@@ -26,7 +26,7 @@ staged ──校验通过──▶ verified ──金丝雀成功──▶ canar
 
 | 操作 | 规则 |
 | :--- | :--- |
-| 获取 | `POST /assets/fetch {kind, source: official \| url}`：后台任务流式下载到 `/data/assets/.tmp/<uuid>`，边下边算 SHA-256，超过种类上限（iPXE 4 MiB、ISO 16 MiB、initrd 256 MiB）立即中止；完成后 `rename` 到内容寻址路径 `/data/assets/<sha256>`；进度经 SSE 推送 |
+| 获取 | `POST /assets/fetch {kind, source: official \| url}`：后台任务流式下载到 `/data/assets/.tmp/<uuidv7>`，边下边算 SHA-256，超过种类上限（iPXE 4 MiB、ISO 16 MiB、initrd 256 MiB）立即中止；完成后 `rename` 到内容寻址路径 `/data/assets/<sha256>`；进度经 SSE 推送 |
 | 上传 | 同一流程，来源记为 `upload`；Debian 资产需同时上传 `InRelease` 与 `SHA256SUMS`（或 `netboot.tar.gz` + 二者），离线完成同样的签名校验 |
 | 记录 | `source_url`（重定向后的最终 URL）、HTTP `ETag`/`Last-Modified`、大小、SHA-256、操作者、iPXE 版本串（从二进制中提取 `iPXE x.y.z+ (g<commit>)`）、Debian 内核 ABI 与 InRelease 日期 |
 | 金丝雀 | `POST /assets/{id}/canary {node_id}`：以“候选资产覆盖”arm 一台节点，会话固定使用候选资产；该会话到达 `Ready` 后资产标记 `canary_passed` 并记录节点与会话 |
@@ -49,7 +49,7 @@ staged ──校验通过──▶ verified ──金丝雀成功──▶ canar
 
 ### 4.2 Debian netboot 签名链
 
-1. 下载 `dists/trixie/InRelease`，用 `pgp` 验证内联签名。信任根为 `trust/debian-archive-keyring.asc`（从 Debian `debian-archive-keyring` 包导出的公钥，构建时 `include_bytes!` 编入），签名密钥指纹必须在 `trust/fingerprints.txt` 中且未过期；两者变更都是单独提交，指纹与 Debian 官方公布值交叉核对。
+1. 下载 `dists/trixie/InRelease`，用 `xpxe-assets` 内的 OpenPGP 验证子集（v4 签名包，RSA PKCS#1 v1.5 / Ed25519，SHA-256/512，密码学部分由 `ring` 完成）验证内联签名。信任根为 `trust/debian-archive-keyring.asc`（从 Debian `debian-archive-keyring` 包导出的公钥，构建时 `include_bytes!` 编入），签名密钥指纹必须在 `trust/fingerprints.txt` 中且未过期；两者变更都是单独提交，指纹与 Debian 官方公布值交叉核对。
 2. 从 InRelease 的 `SHA256:` 段取 `main/installer-amd64/current/images/SHA256SUMS` 的哈希，下载并比对。
 3. 从 `SHA256SUMS` 取 `./netboot/debian-installer/amd64/linux` 与 `initrd.gz` 的哈希，下载并比对。
 4. 从 bzImage 头读取版本串（`HdrS` 魔数位于 0x202，`kernel_version` 指针位于 0x20E，指向 `0x200 + 指针值`），得到 ABI，例如 `6.12.x+deb13-amd64`。
@@ -77,7 +77,7 @@ d-i 启动后从镜像源下载与自身内核 ABI 一致的模块 udeb；镜像
 | ABI 提取 | 真实 bzImage 头部夹具；非 bzImage、指针越界 |
 | 对齐 | 夹具 `Packages.xz` 含/不含目标 ABI |
 | 格式检查 | 真实 iPXE 二进制（`legacy/ipxe.efi`、`legacy/undionly.kpxe` 作为夹具）通过；HTML 404 页面、ARM64 EFI、截断文件被拒 |
-| 下载流程 | 测试内起 HTTPS 服务（rcgen 证书 + 自定义根）：重定向白名单、超大文件中止、断流、ETag 记录 |
+| 下载流程 | 测试内起 HTTPS 服务（`tests/fixtures/tls/` 中的测试 CA 与服务端证书 + 自定义根）：重定向白名单、超大文件中止、断流、ETag 记录 |
 | 生命周期 | 未 `canary_passed` 激活被拒；跳过金丝雀需理由并写审计；回滚；被引用资产不可删除 |
 
 ## 6. 验收

@@ -40,7 +40,7 @@ pub struct Profile {
 ```
 
 - 口令：Web 只提交一次明文，服务端立即用 `sha-crypt` 生成 `$6$rounds=656000$…` 哈希后丢弃明文；也接受粘贴现成的 `$6$`/`$y$` 哈希。哈希字段在差异里只显示“已更改”。
-- 校验示例：`Disabled` 根账户时必须有 `primary_user` 且其组含 `sudo`；`extra_repos` 的公钥必须能被 `pgp` 解析；`security = Official` 与 `XPXE_OFFLINE=true` 同时出现时给出警告。
+- 校验示例：`Disabled` 根账户时必须有 `primary_user` 且其组含 `sudo`；`extra_repos` 的公钥必须能被 OpenPGP 公钥解析器（`xpxe-assets`）解析；`security = Official` 与 `XPXE_OFFLINE=true` 同时出现时给出警告。
 
 ## 4. 渲染输出
 

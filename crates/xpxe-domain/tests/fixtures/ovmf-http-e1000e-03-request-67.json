@@ -1,0 +1,10 @@
+{
+  "source": "ovmf-http-e1000e-03-request-67",
+  "mac": "52:54:00:77:01:d2",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "HTTPClient:Arch:00016:UNDI:003001",
+  "user_class": null,
+  "arch": 16,
+  "has_opt175": false,
+  "message_type": 3
+}

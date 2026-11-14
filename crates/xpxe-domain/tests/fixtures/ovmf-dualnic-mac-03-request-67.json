@@ -1,0 +1,10 @@
+{
+  "source": "ovmf-dualnic-mac-03-request-67",
+  "mac": "52:54:00:77:01:f3",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "PXEClient:Arch:00007:UNDI:003001",
+  "user_class": null,
+  "arch": 7,
+  "has_opt175": false,
+  "message_type": 3
+}

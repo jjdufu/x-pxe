@@ -1,0 +1,10 @@
+{
+  "source": "seabios-vmxnet3-06-request-67",
+  "mac": "52:54:00:77:01:b5",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "d-i",
+  "user_class": null,
+  "arch": null,
+  "has_opt175": false,
+  "message_type": 3
+}

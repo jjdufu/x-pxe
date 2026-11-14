@@ -1,0 +1,10 @@
+{
+  "source": "existing-seabios-virtio-05-discover-67",
+  "mac": "52:54:00:77:01:e1",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "d-i",
+  "user_class": null,
+  "arch": null,
+  "has_opt175": false,
+  "message_type": 1
+}

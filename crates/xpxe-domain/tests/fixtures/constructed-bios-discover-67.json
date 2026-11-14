@@ -1,0 +1,10 @@
+{
+  "source": "constructed-bios-discover-67",
+  "mac": "52:54:00:77:01:b6",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "PXEClient:Arch:00000:UNDI:002001",
+  "user_class": null,
+  "arch": 0,
+  "has_opt175": false,
+  "message_type": 1
+}

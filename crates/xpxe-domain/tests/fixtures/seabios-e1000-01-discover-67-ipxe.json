@@ -1,0 +1,10 @@
+{
+  "source": "seabios-e1000-01-discover-67-ipxe",
+  "mac": "52:54:00:77:01:b1",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "PXEClient:Arch:00000:UNDI:002001",
+  "user_class": "iPXE",
+  "arch": 0,
+  "has_opt175": true,
+  "message_type": 1
+}

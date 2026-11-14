@@ -1,0 +1,10 @@
+{
+  "source": "ovmf-pxe-e1000e-05-discover-67-ipxe",
+  "mac": "52:54:00:77:01:c2",
+  "giaddr": "0.0.0.0",
+  "vendor_class": "PXEClient",
+  "user_class": "iPXE",
+  "arch": 7,
+  "has_opt175": true,
+  "message_type": 1
+}

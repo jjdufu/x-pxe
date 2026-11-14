@@ -1328,6 +1328,14 @@ dependencies = [
 [[package]]
 name = "xpxe-domain"
 version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-e2e"

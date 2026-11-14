@@ -1,0 +1,28 @@
+{
+  "arch": 16,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": false,
+  "label": "ovmf-http-virtio",
+  "mac": "52:54:00:77:01:d1",
+  "message_type": "Some(Discover)",
+  "op": "Request",
+  "opt175": false,
+  "options": [
+    53,
+    57,
+    55,
+    97,
+    94,
+    93,
+    60
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "discover-67",
+  "time": 1794651737,
+  "user_class": null,
+  "vendor_class": "HTTPClient:Arch:00016:UNDI:003001",
+  "xid": "dafdb00b",
+  "yiaddr": "0.0.0.0"
+}

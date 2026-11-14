@@ -1,0 +1,5 @@
+#!ipxe
+# B6 第②步：ipxe.lkrn 扮演“BIOS PXE ROM”，按 ProxyDHCP 给出的文件名经 TFTP 加载 undionly.kpxe。
+echo x-pxe-lab legacy-sim: dhcp then chain tftp undionly.kpxe
+dhcp
+chain tftp://10.77.0.1/undionly.kpxe

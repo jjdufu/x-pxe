@@ -1,0 +1,26 @@
+{
+  "arch": null,
+  "dst": "255.255.255.255:68",
+  "file": "ipxe.efi",
+  "is_ipxe": false,
+  "label": "ovmf-pxe-virtio",
+  "mac": "52:54:00:77:01:c3",
+  "message_type": "Some(Offer)",
+  "op": "Reply",
+  "opt175": false,
+  "options": [
+    53,
+    54,
+    60,
+    97,
+    43
+  ],
+  "siaddr": "10.77.0.1",
+  "src": "10.77.0.1:67",
+  "stage": "offer-68",
+  "time": 1794651650,
+  "user_class": null,
+  "vendor_class": "PXEClient",
+  "xid": "0fb3a66e",
+  "yiaddr": "0.0.0.0"
+}

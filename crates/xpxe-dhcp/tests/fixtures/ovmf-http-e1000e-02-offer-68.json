@@ -1,0 +1,25 @@
+{
+  "arch": null,
+  "dst": "255.255.255.255:68",
+  "file": "http://10.77.0.1:8080/fw/x64/ipxe.efi",
+  "is_ipxe": false,
+  "label": "ovmf-http-e1000e",
+  "mac": "52:54:00:77:01:d2",
+  "message_type": "Some(Offer)",
+  "op": "Reply",
+  "opt175": false,
+  "options": [
+    53,
+    54,
+    60,
+    97
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "10.77.0.1:67",
+  "stage": "offer-68",
+  "time": 1794651780,
+  "user_class": null,
+  "vendor_class": "HTTPClient",
+  "xid": "cc8b17c4",
+  "yiaddr": "0.0.0.0"
+}

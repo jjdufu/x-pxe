@@ -1,0 +1,25 @@
+{
+  "arch": null,
+  "dst": "255.255.255.255:68",
+  "file": "http://10.77.0.1:8080/boot.ipxe",
+  "is_ipxe": false,
+  "label": "seabios-virtio",
+  "mac": "52:54:00:77:01:b3",
+  "message_type": "Some(Offer)",
+  "op": "Reply",
+  "opt175": false,
+  "options": [
+    53,
+    54,
+    60,
+    97
+  ],
+  "siaddr": "10.77.0.1",
+  "src": "10.77.0.1:67",
+  "stage": "offer-68",
+  "time": 1794651555,
+  "user_class": null,
+  "vendor_class": "PXEClient",
+  "xid": "46704b0c",
+  "yiaddr": "0.0.0.0"
+}

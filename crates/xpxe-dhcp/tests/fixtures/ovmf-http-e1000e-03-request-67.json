@@ -1,0 +1,30 @@
+{
+  "arch": 16,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": false,
+  "label": "ovmf-http-e1000e",
+  "mac": "52:54:00:77:01:d2",
+  "message_type": "Some(Request)",
+  "op": "Request",
+  "opt175": false,
+  "options": [
+    53,
+    54,
+    50,
+    57,
+    55,
+    97,
+    94,
+    93,
+    60
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "request-67",
+  "time": 1794651784,
+  "user_class": null,
+  "vendor_class": "HTTPClient:Arch:00016:UNDI:003001",
+  "xid": "cc8b17c4",
+  "yiaddr": "0.0.0.0"
+}

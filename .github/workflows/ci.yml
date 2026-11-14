@@ -100,7 +100,7 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=实验室已跳过::托管 runner 上没有可用的 /dev/kvm 或尚无 lab/ci.sh。KVM 引导矩阵只在开发机上运行（lab/run.sh），结果记录在 lab/results/。"
+            echo "::notice title=实验室已跳过::托管 runner 上没有可用的 /dev/kvm 或尚无 lab/ci.sh。KVM 引导矩阵只在开发机上运行（lab/run.sh），结果记录在 docs/lab/。"
           fi
       - name: 运行实验室冒烟
         if: steps.probe.outputs.run == 'true'

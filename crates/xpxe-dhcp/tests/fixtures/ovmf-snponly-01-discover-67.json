@@ -1,0 +1,28 @@
+{
+  "arch": 7,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": false,
+  "label": "ovmf-snponly",
+  "mac": "52:54:00:77:01:c6",
+  "message_type": "Some(Discover)",
+  "op": "Request",
+  "opt175": false,
+  "options": [
+    53,
+    57,
+    55,
+    97,
+    94,
+    93,
+    60
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "discover-67",
+  "time": 1794651728,
+  "user_class": null,
+  "vendor_class": "PXEClient:Arch:00007:UNDI:003001",
+  "xid": "d8ff9403",
+  "yiaddr": "0.0.0.0"
+}

@@ -1,0 +1,15 @@
+{
+  "boot_params": true,
+  "file": "undionly.kpxe",
+  "from": "10.77.0.1:67",
+  "message_type": "Some(Offer)",
+  "opt43": "060108ff",
+  "opt60": "PXEClient",
+  "opt66": null,
+  "opt67": null,
+  "opt97": "008f2cb9bb2109d6c17f886d627d5dd75c",
+  "proxy": true,
+  "server_id": "10.77.0.1",
+  "siaddr": "10.77.0.1",
+  "yiaddr": "0.0.0.0"
+}

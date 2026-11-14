@@ -15,6 +15,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+xpxe-dhcp.workspace = true
+xpxe-tftp.workspace = true
+xpxe-image.workspace = true
 tokio.workspace = true
 axum.workspace = true
 tower-http.workspace = true
@@ -45,3 +48,6 @@ serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 time.workspace = true
+
+[dev-dependencies]
+xpxe-test-support.workspace = true

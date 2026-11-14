@@ -17,8 +17,6 @@ mod password_hash_reexport {
 /// 预检失败的原因。
 #[derive(Debug)]
 pub(crate) enum CheckError {
-    /// 命令行用法错误。
-    Usage,
     /// 某个依赖的最小调用失败。
     Dependency {
         /// 依赖名。
@@ -31,7 +29,6 @@ pub(crate) enum CheckError {
 impl std::fmt::Display for CheckError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Usage => f.write_str("用法：xpxe-lab deps-check"),
             Self::Dependency { name, detail } => write!(f, "依赖 {name} 预检失败：{detail}"),
         }
     }

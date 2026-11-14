@@ -1,0 +1,28 @@
+{
+  "arch": null,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": false,
+  "label": "seabios-e1000e",
+  "mac": "52:54:00:77:01:b2",
+  "message_type": "Some(Request)",
+  "op": "Request",
+  "opt175": false,
+  "options": [
+    53,
+    50,
+    54,
+    57,
+    55,
+    60,
+    61
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "request-67",
+  "time": 1794651542,
+  "user_class": null,
+  "vendor_class": "d-i",
+  "xid": "a5a8e570",
+  "yiaddr": "0.0.0.0"
+}

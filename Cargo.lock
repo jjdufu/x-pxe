@@ -1321,6 +1321,9 @@ version = "0.1.0"
 [[package]]
 name = "xpxe-dhcp"
 version = "0.1.0"
+dependencies = [
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-domain"
@@ -1336,6 +1339,9 @@ dependencies = [
 [[package]]
 name = "xpxe-image"
 version = "0.1.0"
+dependencies = [
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-lab"
@@ -1371,6 +1377,10 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "webpki-roots",
+ "xpxe-dhcp",
+ "xpxe-image",
+ "xpxe-test-support",
+ "xpxe-tftp",
 ]
 
 [[package]]
@@ -1392,6 +1402,11 @@ version = "0.1.0"
 [[package]]
 name = "xpxe-tftp"
 version = "0.1.0"
+dependencies = [
+ "tokio",
+ "tracing",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "zeroize"

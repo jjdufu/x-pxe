@@ -1,0 +1,15 @@
+{
+  "boot_params": false,
+  "file": "",
+  "from": "10.77.0.2:67",
+  "message_type": "Some(Offer)",
+  "opt43": null,
+  "opt60": null,
+  "opt66": null,
+  "opt67": null,
+  "opt97": null,
+  "proxy": false,
+  "server_id": "10.77.0.2",
+  "siaddr": "0.0.0.0",
+  "yiaddr": "10.77.0.106"
+}

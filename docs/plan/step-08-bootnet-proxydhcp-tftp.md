@@ -38,9 +38,9 @@
 | 请求 | 应答 |
 | :--- | :--- |
 | 67 端口 DISCOVER，PXE ROM（BIOS/UEFI） | DHCPOFFER：`yiaddr = 0`；`siaddr` = iface 地址；`file = fw/<sha12>/<undionly.kpxe \| ipxe.efi \| snponly.efi>`；Opt53=OFFER、Opt54=iface 地址、Opt60=`PXEClient`、Opt97 回显（请求携带时）、Opt43 = `{6: 0x08}`（`PXE_DISCOVERY_CONTROL`：直接使用 boot file，不做服务器发现）；按 `DhcpRules.mirror_bootfile_options` 同时写 Opt66/67 |
-| 4011 端口 REQUEST（UEFI 常见） | DHCPACK，内容同上，单播回源地址 |
+| 4011 端口 REQUEST（iPXE 收到 Proxy OFFER 后必发；EDK2 `PxeBc` 在 OFFER 已含 Opt43/`siaddr`/`file` 时不发） | DHCPACK，内容与该客户端类型的 OFFER 相同，单播回源地址 |
 | 67 端口 DISCOVER，Opt60 = `HTTPClient…`（UEFI HTTP Boot） | DHCPOFFER：Opt60=`HTTPClient`，`file = <XPXE_BOOT_BASE_URL>/fw/x64/ipxe.efi`（URL 含端口），无 Opt43 |
-| 67 端口 DISCOVER，Opt77 = `iPXE` 或带 Opt175 | DHCPOFFER：Opt60=`PXEClient`，`file = <XPXE_BOOT_BASE_URL>/p/<boot_token>/boot.ipxe`，无 Opt43 |
+| 67 端口 DISCOVER，Opt77 = `iPXE` 或带 Opt175 | DHCPOFFER：Opt60=`PXEClient`，`siaddr` = iface 地址（iPXE 只在 `siaddr` 非零且有引导文件名时接受 ProxyDHCP 应答），`file = <XPXE_BOOT_BASE_URL>/p/<boot_token>/boot.ipxe`，无 Opt43 |
 | 其他（REQUEST/INFORM/RELEASE、非 PXE、中继） | 不应答 |
 
 目的地址：`ciaddr = 0` 或广播标志置位时发往 `255.255.255.255:68`（经 `IP_PKTINFO` 指定出口网卡），否则单播 `ciaddr:68`。
@@ -102,7 +102,7 @@ xpxe-bootnet                                  xpxe-control（内部 API，Bearer
 
 ```bash
 cargo test -p xpxe-dhcp -p xpxe-tftp -p xpxe-bootnet --all-targets --locked
-lab/run.sh -j 3 B1 B2 B3 B4 B5 B6 U1 U2 U3 U4 U5 U6 W1 W2 N1 --bootnet target/debug/xpxe-bootnet   # Step 2 矩阵，由正式 bootnet 应答
+lab/run.sh -j 2 B1 B2 B3 B4 B5 B6 U1 U2 U3 U4 U5 U6 W1 W2 N1 --bootnet target/debug/xpxe-bootnet   # Step 2 矩阵，由正式 bootnet 应答
 lab/dhcp.sh start existing && lab/run.sh X1 X2 --bootnet target/debug/xpxe-bootnet               # 复用现有 DHCP 模式
 lab/dhcp.sh start rogue && lab/run.sh rogue-proxy   # br-lab 上出现下发引导参数的 lab-rogue，bootnet 必须进入 Conflict
 lab/run.sh redfish-only-ports # 切换模式后 ss -ulnp 中没有 :67 :69 :4011

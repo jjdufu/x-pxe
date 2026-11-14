@@ -1,0 +1,30 @@
+{
+  "arch": 7,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": false,
+  "label": "ovmf-pxe-e1000",
+  "mac": "52:54:00:77:01:c1",
+  "message_type": "Some(Request)",
+  "op": "Request",
+  "opt175": false,
+  "options": [
+    53,
+    54,
+    50,
+    57,
+    55,
+    97,
+    94,
+    93,
+    60
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "request-67",
+  "time": 1794651606,
+  "user_class": null,
+  "vendor_class": "PXEClient:Arch:00007:UNDI:003001",
+  "xid": "0a01488a",
+  "yiaddr": "0.0.0.0"
+}

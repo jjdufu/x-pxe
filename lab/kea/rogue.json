@@ -1,0 +1,52 @@
+{
+  "Dhcp4": {
+    "interfaces-config": {
+      "interfaces": [
+        "eth0"
+      ],
+      "dhcp-socket-type": "raw"
+    },
+    "lease-database": {
+      "type": "memfile",
+      "persist": false
+    },
+    "valid-lifetime": 600,
+    "renew-timer": 300,
+    "rebind-timer": 450,
+    "authoritative": false,
+    "subnet4": [
+      {
+        "id": 1,
+        "subnet": "10.77.0.0/24",
+        "pools": [
+          {
+            "pool": "10.77.0.150 - 10.77.0.199"
+          }
+        ],
+        "option-data": [
+          {
+            "name": "routers",
+            "data": "10.77.0.1"
+          },
+          {
+            "name": "domain-name-servers",
+            "data": "10.77.0.1"
+          }
+        ],
+        "next-server": "10.77.0.66",
+        "boot-file-name": "rogue.pxe"
+      }
+    ],
+    "loggers": [
+      {
+        "name": "kea-dhcp4",
+        "output-options": [
+          {
+            "output": "stdout"
+          }
+        ],
+        "severity": "INFO"
+      }
+    ]
+  }
+}

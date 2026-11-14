@@ -1,0 +1,9 @@
+#!ipxe
+# 实验室通用引导脚本：先找按 MAC 生成的节点脚本（lab/run.sh 写入），否则直接进 d-i。
+# ${netX} 指最近一次打开（即引导所用）的网卡。
+echo x-pxe-lab boot.ipxe mac=${netX/mac} ip=${netX/ip} user-class=${user-class} platform=${platform}
+chain --autofree http://10.77.0.1:8080/node/${netX/mac:hexhyp}.ipxe || goto installer
+:installer
+kernel http://10.77.0.1:8080/d-i/linux initrd=initrd.gz auto=true priority=critical url=http://10.77.0.1:8080/preseed.cfg?mac=${netX/mac:hexhyp} BOOTIF=01-${netX/mac:hexhyp} console=ttyS0,115200n8 ---
+initrd http://10.77.0.1:8080/d-i/initrd.gz
+boot

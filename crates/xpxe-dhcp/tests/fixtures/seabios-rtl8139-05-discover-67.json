@@ -1,0 +1,26 @@
+{
+  "arch": null,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": false,
+  "label": "seabios-rtl8139",
+  "mac": "52:54:00:77:01:b4",
+  "message_type": "Some(Discover)",
+  "op": "Request",
+  "opt175": false,
+  "options": [
+    53,
+    57,
+    55,
+    60,
+    61
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "discover-67",
+  "time": 1794651589,
+  "user_class": null,
+  "vendor_class": "d-i",
+  "xid": "831b7275",
+  "yiaddr": "0.0.0.0"
+}

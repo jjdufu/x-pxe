@@ -2,31 +2,68 @@
 //!
 //! 子命令：
 //! - `deps-check`：对 workspace 选用的每个第三方依赖调用一次最小 API，确认它们在门禁下可用。
+//! - `proxydhcp`：最小 `ProxyDHCP`（67/4011），只应答允许的 MAC。
+//! - `tftp`：最小只读 TFTP，只服务列出的文件。
+//! - `serve`：最小 HTTP 端（静态文件 + 事件 POST 记录）。
+//! - `capture`：从 tcpdump 抓包中提取 DHCP 报文为夹具。
+//! - `dhcp-scan`：列出实验网上所有应答的 DHCP 服务器。
+//! - `pxe-client`：发出指定类型的 PXE DISCOVER（及 4011 REQUEST）。
+//! - `iso`：生成 UEFI 引导 ISO。
+//!
+//! 发 DHCP 的子命令只在带 10.77.0.0/24 直连路由且不承载默认路由的网卡上运行。
 
+mod capture;
+mod common;
 mod deps_check;
+mod iso;
+mod logging;
+mod proxydhcp;
+mod scan;
+mod serve;
+mod tftp;
 
 use std::io::Write as _;
 use std::process::ExitCode;
 
+use common::{Args, LabError, LabResult};
+
+/// 用法说明。
+const USAGE: &str =
+    "用法：xpxe-lab <deps-check|proxydhcp|tftp|serve|capture|dhcp-scan|pxe-client|iso> [参数…]";
+
+/// 运行依赖预检并打印报告。
+///
+/// # Errors
+///
+/// 预检失败时返回 [`LabError`]。
+fn deps() -> LabResult {
+    let report = deps_check::run().map_err(|error| LabError(error.to_string()))?;
+    let mut stdout = std::io::stdout().lock();
+    for line in report {
+        writeln!(stdout, "deps-check: {line} ok")?;
+    }
+    writeln!(stdout, "deps-check: 全部通过")?;
+    Ok(())
+}
+
 /// 进程入口：按第一个参数分派子命令。
 fn main() -> ExitCode {
-    let command = std::env::args().nth(1).unwrap_or_default();
+    let mut rest = std::env::args().skip(1);
+    let command = rest.next().unwrap_or_default();
+    let args = Args::new(rest.collect());
     let outcome = match command.as_str() {
-        "deps-check" => deps_check::run(),
-        _ => Err(deps_check::CheckError::Usage),
+        "deps-check" => deps(),
+        "proxydhcp" => proxydhcp::run(&args),
+        "tftp" => tftp::run(&args),
+        "serve" => serve::run(&args),
+        "capture" => capture::run(&args),
+        "dhcp-scan" => scan::run_scan(&args),
+        "pxe-client" => scan::run_pxe(&args),
+        "iso" => iso::run(&args),
+        _ => Err(LabError(USAGE.to_owned())),
     };
-    let mut stdout = std::io::stdout().lock();
     match outcome {
-        Ok(report) => {
-            let written = report
-                .iter()
-                .try_for_each(|line| writeln!(stdout, "deps-check: {line} ok"));
-            if written.is_ok() && writeln!(stdout, "deps-check: 全部通过").is_ok() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
+        Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             let mut stderr = std::io::stderr().lock();
             if writeln!(stderr, "xpxe-lab: {error}").is_err() {

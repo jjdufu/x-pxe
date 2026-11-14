@@ -1,0 +1,80 @@
+{
+  "Dhcp4": {
+    "interfaces-config": {
+      "interfaces": [
+        "eth0"
+      ],
+      "dhcp-socket-type": "raw"
+    },
+    "lease-database": {
+      "type": "memfile",
+      "persist": false
+    },
+    "valid-lifetime": 600,
+    "renew-timer": 300,
+    "rebind-timer": 450,
+    "authoritative": true,
+    "subnet4": [
+      {
+        "id": 1,
+        "subnet": "10.77.0.0/24",
+        "pools": [
+          {
+            "pool": "10.77.0.100 - 10.77.0.149"
+          }
+        ],
+        "option-data": [
+          {
+            "name": "routers",
+            "data": "10.77.0.1"
+          },
+          {
+            "name": "domain-name-servers",
+            "data": "10.77.0.1"
+          }
+        ]
+      }
+    ],
+    "loggers": [
+      {
+        "name": "kea-dhcp4",
+        "output-options": [
+          {
+            "output": "stdout"
+          }
+        ],
+        "severity": "INFO"
+      }
+    ],
+    "client-classes": [
+      {
+        "name": "ipxe",
+        "test": "option[77].text == 'iPXE' or option[175].exists",
+        "boot-file-name": "http://10.77.0.1:8080/boot.ipxe"
+      },
+      {
+        "name": "uefi-http",
+        "test": "not member('ipxe') and substring(option[60].hex,0,10) == 'HTTPClient'",
+        "boot-file-name": "http://10.77.0.1:8080/fw/x64/ipxe.efi",
+        "option-data": [
+          {
+            "name": "vendor-class-identifier",
+            "data": "HTTPClient"
+          }
+        ]
+      },
+      {
+        "name": "uefi-pxe",
+        "test": "not member('ipxe') and not member('uefi-http') and option[93].hex == 0x0007",
+        "next-server": "10.77.0.1",
+        "boot-file-name": "ipxe.efi"
+      },
+      {
+        "name": "bios-pxe",
+        "test": "not member('ipxe') and option[93].hex == 0x0000",
+        "next-server": "10.77.0.1",
+        "boot-file-name": "undionly.kpxe"
+      }
+    ]
+  }
+}

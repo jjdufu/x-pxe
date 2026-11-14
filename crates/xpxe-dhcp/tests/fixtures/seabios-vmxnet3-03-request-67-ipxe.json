@@ -1,0 +1,33 @@
+{
+  "arch": 0,
+  "dst": "255.255.255.255:67",
+  "file": "",
+  "is_ipxe": true,
+  "label": "seabios-vmxnet3",
+  "mac": "52:54:00:77:01:b5",
+  "message_type": "Some(Request)",
+  "op": "Request",
+  "opt175": true,
+  "options": [
+    53,
+    57,
+    93,
+    94,
+    60,
+    77,
+    55,
+    175,
+    61,
+    97,
+    54,
+    50
+  ],
+  "siaddr": "0.0.0.0",
+  "src": "0.0.0.0:68",
+  "stage": "request-67-ipxe",
+  "time": 1794651599,
+  "user_class": "iPXE",
+  "vendor_class": "PXEClient:Arch:00000:UNDI:002001",
+  "xid": "1c93755b",
+  "yiaddr": "0.0.0.0"
+}

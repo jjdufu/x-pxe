@@ -15,3 +15,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+xpxe-test-support.workspace = true

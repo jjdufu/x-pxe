@@ -9,8 +9,8 @@
 | 项 | box 现状 | 实验室用法 |
 | :--- | :--- | :--- |
 | 系统 | Debian 13（trixie），内核 6.12，PID 1 为 `tini`（无 systemd） | 守护进程（libvirtd、virtlogd）由 `lab/setup.sh` 手动拉起 |
-| 虚拟化 | `/dev/kvm` 存在，属组 `pulse-access`；当前用户 `box` 有免密 sudo | 用户 `box` 与 `libvirt-qemu` 加入 `pulse-access` 组，QEMU 以非 root 运行并启用 KVM |
-| 资源 | 8 核、15 GB 内存、约 58 GB 可用磁盘 | 每台虚拟机 2 vCPU、2 GiB 内存；完整装机场景最多并行 2 台（`lab/run.sh -j 2`），只做引导阶段验证的场景最多并行 3 台；磁盘为稀疏 qcow2，场景通过后删除（`--keep` 保留），实验室总占用控制在 25 GB 内 |
+| 虚拟化 | `/dev/kvm` 存在，属组 `kvm`（脚本用 `stat -c %G /dev/kvm` 取实际属组，不写死）；当前用户 `box` 有免密 sudo | 用户 `box` 与 `libvirt-qemu` 加入该属组，QEMU 以非 root 运行并启用 KVM |
+| 资源 | 8 核、15 GB 内存、约 58 GB 可用磁盘 | 每台虚拟机 2 vCPU、2 GiB 内存；完整装机场景最多并行 2 台（`lab/run.sh -j 2`），只做引导阶段验证的场景最多并行 2 台（box 同时运行其他容器栈，可用内存约 8 GB）；磁盘为稀疏 qcow2，场景通过后删除（`--keep` 保留），实验室总占用控制在 25 GB 内 |
 | 容器 | Docker 29.9.3 | “现网 DHCP”“伪造 DHCP”、APT 缓存、Step 13 的被测产品都以容器运行 |
 | 网络 | 实验网桥 `br-lab` 不连接任何物理网卡、不做 NAT | 实验室发出的 DHCP 报文到不了任何真实网络，伪造 DHCP 测试没有外溢风险 |
 
@@ -52,11 +52,12 @@ sudo apt-get install -y --no-install-recommends \
   libvirt-daemon-system libvirt-clients python3-libvirt python3-venv \
   iproute2 iptables tcpdump socat openssl apache2-utils
 
-# KVM：/dev/kvm 属组为 pulse-access
-sudo usermod -aG pulse-access box            # 新登录会话生效
-sudo usermod -aG pulse-access libvirt-qemu   # libvirt 拉起的 QEMU
-sg pulse-access -c 'test -r /dev/kvm && test -w /dev/kvm' && echo kvm-ok
-# 当前 shell 未重新登录时，实验室脚本统一经 `sg pulse-access -c` 运行 QEMU；
+# KVM：属组取 /dev/kvm 的实际属组（box 上为 kvm）
+KVM_GROUP="$(stat -c %G /dev/kvm)"
+sudo usermod -aG "$KVM_GROUP" box            # 新登录会话生效
+sudo usermod -aG "$KVM_GROUP" libvirt-qemu   # libvirt 拉起的 QEMU
+sg "$KVM_GROUP" -c 'test -r /dev/kvm && test -w /dev/kvm' && echo kvm-ok
+# 当前 shell 未重新登录时，实验室脚本统一经 `sg "$KVM_GROUP" -c` 运行 QEMU；
 # 不使用 `sudo qemu-system-x86_64`，避免虚拟机进程以 root 运行。
 
 # 无 systemd：手动启动 libvirt
@@ -80,7 +81,7 @@ docker build -t xpxe-lab/kea  lab/images/kea
 docker build -t xpxe-lab/acng lab/images/acng
 ```
 
-固件文件位置（Debian 包提供）：SeaBIOS 为 QEMU 默认 BIOS；`/usr/share/OVMF/OVMF_CODE_4M.fd` + `OVMF_VARS_4M.fd`（每台虚拟机复制一份 VARS）；网卡 ROM 为 `/usr/lib/ipxe/qemu/efi-{e1000,e1000e,virtio,rtl8139,vmxnet3}.rom`（QEMU 按网卡型号自动加载）；`/usr/lib/ipxe/ipxe.lkrn` 只用于场景 B6。
+固件文件位置（Debian 包提供）：SeaBIOS 为 QEMU 默认 BIOS；`/usr/share/OVMF/OVMF_CODE_4M.fd` + `OVMF_VARS_4M.fd`（每台虚拟机复制一份 VARS）；网卡 ROM 为 `/usr/share/qemu/efi-{e1000,e1000e,virtio,rtl8139,vmxnet3}.rom`（`ipxe-qemu` 包，QEMU 按网卡型号自动加载）；`ipxe` 包提供 `/usr/lib/ipxe/{ipxe.efi,snponly.efi,undionly.kpxe,ipxe.lkrn}`，实验室的 TFTP/HTTP 根目录从这里复制（不入库），`ipxe.lkrn` 只用于场景 B6。
 
 ### 4.2 隔离网络（`lab/net.sh up`）
 
@@ -92,11 +93,13 @@ for i in 0 1 2 3; do
   sudo ip tuntap add tap$i mode tap user box
   sudo ip link set tap$i master br-lab up
 done
+# 另建一个不接入网桥的孤立 tap（tap-iso），作为 N2 双网卡场景的第一块网卡：有链路、无 DHCP、无出口
+sudo ip tuntap add tap-iso mode tap user box && sudo ip link set tap-iso up
 # 不加入任何物理网卡；box 上已有的 FORWARD 规则会放行 br-+，因此在最前面插入两条隔离规则：
 sudo iptables -I FORWARD 1 -i br-lab ! -o br-lab -m conntrack ! --ctstate DNAT -j DROP
 sudo iptables -I FORWARD 1 -o br-lab ! -i br-lab -m conntrack ! --ctstate RELATED,ESTABLISHED -j DROP
-# 若加载了 br_netfilter，桥内二层流量不经 iptables：
-[ -e /proc/sys/net/bridge/bridge-nf-call-iptables ] && sudo sysctl -w net.bridge.bridge-nf-call-iptables=0
+# 不修改全局 sysctl bridge-nf-call-iptables：box 上还运行着其他 Docker 栈，
+# 即使加载了 br_netfilter，桥内二层流量也只匹配 -i br-lab -o br-lab，不会被上面两条规则丢弃。
 ```
 
 - 虚拟机只能访问 `10.77.0.1` 上发布的端口（被测控制面 8080、APT 缓存 3142、sushy 8000），这些流量经 Docker DNAT 进入容器，被第一条规则的 `DNAT` 例外放行；虚拟机无法访问外网。
@@ -216,7 +219,7 @@ B1–B6、U1–U6、W1–W2、X1–X2 的每个首包与关键包都保存为夹
 
 | 子命令 | 行为 |
 | :--- | :--- |
-| `capture --iface br-lab --out <dir>` | 监听 67/68/4011，原样保存每个报文并生成描述 JSON |
+| `capture --pcap <file> --out <dir> --label <前缀> [--mac <mac>…] [--first-per-phase]` | 解析 `tcpdump -i br-lab -w` 的经典 pcap，提取 67/68/4011 的 DHCP 报文原样保存并生成描述 JSON（门禁禁止 `unsafe`，探针不自开原始套接字） |
 | `proxydhcp --iface br-lab --allow-mac <mac> --boot-base http://10.77.0.1:8080` | 最小 ProxyDHCP，只应答允许的 MAC |
 | `tftp --root-file undionly.kpxe=<path> --root-file ipxe.efi=<path>` | 最小只读 TFTP，只服务列出的文件 |
 | `iso --efi <ipxe.efi> --script <autoexec.ipxe> --out boot.iso` | UEFI 引导 ISO 试制 |
@@ -230,7 +233,7 @@ B1–B6、U1–U6、W1–W2、X1–X2 的每个首包与关键包都保存为夹
 ```bash
 lab/setup.sh && lab/net.sh up && lab/net.sh selftest   # 隔离自检
 lab/dhcp.sh start coexist
-lab/run.sh -j 3 B1 B2 B3 B4 B5 B6 U1 U2 U3 U4 U5 U6 W1 W2 N1 N2
+lab/run.sh -j 2 B1 B2 B3 B4 B5 B6 U1 U2 U3 U4 U5 U6 W1 W2 N1 N2 H9a H9b
 lab/dhcp.sh start existing && lab/run.sh X1 X2
 lab/dhcp.sh stop && lab/run.sh R2 && lab/dhcp.sh start coexist && lab/run.sh R1
 lab/dhcp.sh start rogue && lab/run.sh G1

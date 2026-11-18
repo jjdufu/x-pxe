@@ -13,6 +13,11 @@ fi
 echo "${disk}" > /tmp/xpxe-disk-selected
 debconf-set partman-auto/disk "${disk}"
 debconf-set grub-installer/bootdev "${disk}"
+# 回读确认：引导器必须装到选中的盘，绝不回落到 grub-installer 的“第一块盘”（可能是 BMC 虚拟 U 盘）
+if [ "$(debconf-get partman-auto/disk)" != "${disk}" ] || [ "$(debconf-get grub-installer/bootdev)" != "${disk}" ]; then
+    wget -q -O /dev/null --post-data {{ fail_prefix | sh_quote }}"debconf-set-failed ${disk}" {{ fail_url | sh_quote }} || true
+    exit 1
+fi
 {% if custom %}
 if [ -e /sys/firmware/efi ]; then
     debconf-set partman-auto/expert_recipe {{ uefi_recipe | sh_quote }}

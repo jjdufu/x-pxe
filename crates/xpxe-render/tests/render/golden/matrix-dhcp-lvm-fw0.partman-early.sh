@@ -13,5 +13,10 @@ fi
 echo "${disk}" > /tmp/xpxe-disk-selected
 debconf-set partman-auto/disk "${disk}"
 debconf-set grub-installer/bootdev "${disk}"
+# 回读确认：引导器必须装到选中的盘，绝不回落到 grub-installer 的“第一块盘”（可能是 BMC 虚拟 U 盘）
+if [ "$(debconf-get partman-auto/disk)" != "${disk}" ] || [ "$(debconf-get grub-installer/bootdev)" != "${disk}" ]; then
+    wget -q -O /dev/null --post-data 'event=installer.failed event_id=ev-00000001 reason=disk_selection inventory='"debconf-set-failed ${disk}" 'http://10.77.0.1:8080/events/installer.failed' || true
+    exit 1
+fi
 
 exit 0

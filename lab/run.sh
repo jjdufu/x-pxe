@@ -47,7 +47,7 @@ services() { # proxy|noproxy
   fi
 }
 
-stop_services() { for s in proxydhcp tftp serve sushy; do svc_stop "$s"; done; }
+stop_services() { for s in proxydhcp tftp serve sushy apt-proxy; do svc_stop "$s"; done; }
 
 # 等待 d-i 的 early_command 事件（证明进入 d-i 且 preseed 被取走并执行）
 wait_early() { # <mac> <秒>
@@ -254,14 +254,21 @@ sc_G1() {
 # ---------- Step 4：渲染结果真实装机 ----------
 # 实验室把 nexus-lvm 预设的镜像源改为 APT 缓存（虚拟机没有外网），其余条目保持预设。
 LAB_MIRROR='/mirror={"scheme":"http","host_port":"10.77.0.1:3142","directory":"/deb.debian.org/debian"}'
-acng_up() {
-  docker ps --format '{{.Names}}' | grep -qx lab-acng && return 0
+apt_ok() { curl -s -m 30 -o /dev/null -w '%{http_code}' "http://${LAB_IP}:3142/deb.debian.org/debian/dists/trixie/Release" | grep -qx 200; }
+acng_up() { # 优先 apt-cacher-ng 容器；宿主网络下它回源失败（HTTP 500）时换成 lab/lib/apt-proxy.py
+  apt_ok && return 0
   docker rm -f lab-acng >/dev/null 2>&1 || true
   docker run -d --name lab-acng -p "${LAB_IP}:3142:3142" xpxe-lab/acng >/dev/null
   sleep 2
+  apt_ok && return 0
+  log "lab-acng 回源失败，改用 apt-proxy.py"
+  docker rm -f lab-acng >/dev/null 2>&1 || true
+  svc_start apt-proxy user python3 "${LAB_DIR}/lib/apt-proxy.py" "${LAB_IP}" 3142 "${WORK}/apt-cache"
+  apt_ok || die "APT 缓存不可用"
 }
-post_seen() { # <路径> <event_id>
-  jsel "$(svc_log serve)" '.event=="post" and .path==$m' "$1" | grep -F -- "$2" | grep -q .
+post_seen() { # <路径> <event_id>；只看本场景开始之后的日志，避免同一 event_id 的旧记录误判
+  tail -n "+${SERVE_OFF:-1}" "$(svc_log serve)" | jq -R -c --arg m "$1" 'fromjson? | select(.event=="post" and .path==$m)' \
+    | grep -F -- "$2" | grep -q .
 }
 wait_post() { # <路径> <event_id> <秒>
   local deadline=$((SECONDS + $3))
@@ -293,6 +300,10 @@ sc_I() { # <install-uefi|install-bios|install-static> <tap>
   mv "${r}/plan.json" "${WORK}/www/p/${agent_token}/plan.json"
   ln -sf ../../d-i/linux "${r}/linux"; ln -sf ../../d-i/initrd.gz "${r}/initrd.gz"
   cp "${r}/boot.ipxe" "${WORK}/www/node/${hy}.ipxe"
+  if [ "${DI_SYSLOG:-0}" = 1 ]; then # 排障：partman 阶段起每 20 秒把 d-i syslog 尾部 POST 回来（只改实验室文件，不影响 preseed MD5）
+    printf '(while sleep 20; do wget -q -O /dev/null --post-data "$(tail -n 300 /var/log/syslog)" %s/events/di-syslog-%s; done) >/dev/null 2>&1 &\n' \
+      "${BASE}" "${mid}" | sed -i '1r /dev/stdin' "${r}/partman-early.sh"
+  fi
   cp -a "${r}" "${D}/rendered"
   # 系统盘 20G；数据盘 8G 低于下限；1G BMC 虚拟 U 盘（usb-storage，removable）必须被排除
   local vmdir; vmdir="$("${LAB_DIR}/vm.sh" --name "${id}" --fw "${fw}" --nic virtio --mac "${mac}" --tap "${tap}" \
@@ -303,15 +314,19 @@ sc_I() { # <install-uefi|install-bios|install-static> <tap>
   elif post_seen /events/installer.failed "${ev}"; then check "installer.finished" 1 "收到 installer.failed：$(jsel "$(svc_log serve)" '.path=="/events/installer.failed"' | tail -1)"
   else check "installer.finished" 1 "超时"; fi
   rm -f "${WORK}/www/node/${hy}.ipxe"
-  # 重启后从系统盘起来：静态场景 ping 节点规格地址；DHCP 场景看串口登录提示
-  local deadline=$((SECONDS + 600)) up=1
+  # 重启后从系统盘起来：sshd（tasksel ssh-server）应答横幅即视为进入装好的系统。
+  # 静态场景直接连节点规格地址；DHCP 场景从 br-lab 邻居表按 MAC 找地址。串口另需出现登录提示（--- 后的 console= 被带入目标系统）。
+  local deadline=$((SECONDS + 600)) up=1 ip=""
   while [ "${SECONDS}" -lt "${deadline}" ]; do
-    if [ "${id}" = install-static ]; then ping -c1 -W2 10.77.0.16 >/dev/null 2>&1 && { up=0; break; }
-    else strings "${vmdir}/serial.log" | grep -q "lab-${id#install-} login:" && { up=0; break; }; fi
+    if [ "${id}" = install-static ]; then ip=10.77.0.16
+    else ip="$(ip neigh show dev "${BR}" | awk -v m="${mac}" 'tolower($0) ~ m {print $1; exit}')"; fi
+    if [ -n "${ip}" ] && timeout 5 bash -c "exec 3<>/dev/tcp/${ip}/22 && head -c 7 <&3" 2>/dev/null | grep -q '^SSH-2.0'; then up=0; break; fi
     sleep 10
   done
-  if [ "${id}" = install-static ]; then check "静态地址" "${up}" "重启后 10.77.0.16 可达（/etc/network/interfaces 为静态配置）"
-  else check "重启进系统" "${up}" "串口出现 lab-${id#install-} login:"; fi
+  check "重启进系统" "${up}" "从系统盘启动，${ip:-?}:22 返回 SSH 横幅"
+  if strings "${vmdir}/serial.log" | grep -q "lab-${id#install-} login:"; then check "串口控制台" 0 "装好的系统串口出现 lab-${id#install-} login:"
+  else check "串口控制台" 1 "串口未见登录提示"; fi
+  [ "${id}" = install-static ] && check "静态地址" "${up}" "10.77.0.16（节点规格地址）在重启后可达，/etc/network/interfaces 为静态配置"
   local usb sys
   usb="$(du -k "${vmdir}/vusb.raw" | cut -f1)" sys="$(du -k "${vmdir}/sys.qcow2" | cut -f1)"
   [ "${usb}" = 0 ] && [ "${sys}" -gt 500000 ] && check "选盘" 0 "系统盘写入 ${sys} KiB，BMC 虚拟 U 盘未写入" \

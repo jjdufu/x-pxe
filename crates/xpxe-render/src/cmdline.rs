@@ -50,11 +50,15 @@ pub(crate) fn build_cmdline(
         &format!("keymap={}", request.profile().keymap()),
     );
     push_static(&mut params, request.node().network())?;
-    for console in request.profile().console().items() {
-        push_unique(&mut params, &format!("console={}", console.as_str()));
-    }
     if let Some(level) = request.profile().debug().debconf_value() {
         push_unique(&mut params, &format!("DEBCONF_DEBUG={level}"));
+    }
+    // `---` 之后的参数由 d-i 原样写进目标系统的引导器配置：控制台在安装期与装好的系统上一致（SOL 可见登录提示）。
+    if !request.profile().console().items().is_empty() {
+        params.push("---".to_owned());
+    }
+    for console in request.profile().console().items() {
+        push_unique(&mut params, &format!("console={}", console.as_str()));
     }
     let line = params.join(" ");
     if line.len() > max_len() {

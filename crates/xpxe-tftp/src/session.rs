@@ -18,7 +18,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
 /// 服务端的协商上限。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
-    /// 允许的最大块大小（默认按 MTU 1500 计算为 1468）。
+    /// 允许的最大块大小（默认按 MTU 1500 计算为 1468，见 [`Limits::for_mtu`]）。
     pub largest_block: usize,
     /// 允许的最大窗口。
     pub largest_window: u16,
@@ -26,11 +26,22 @@ pub struct Limits {
     pub retries: u8,
 }
 
+impl Limits {
+    /// 按网卡 MTU 计算块大小上限：MTU − 20（IP）− 8（UDP）− 4（TFTP 头），限定在 8–1468。
+    #[must_use]
+    pub fn for_mtu(mtu: usize) -> Self {
+        Self {
+            largest_block: mtu.saturating_sub(32).clamp(MIN_BLKSIZE, 1468),
+            ..Self::default()
+        }
+    }
+}
+
 impl Default for Limits {
     fn default() -> Self {
         Self {
             largest_block: 1468,
-            largest_window: 64,
+            largest_window: 16,
             retries: 5,
         }
     }
@@ -179,6 +190,14 @@ impl Session {
     #[must_use]
     pub const fn timeout(&self) -> Duration {
         self.timeout
+    }
+
+    /// 已被确认的字节数。
+    #[must_use]
+    pub fn acked_bytes(&self) -> u64 {
+        let blocks = usize::try_from(self.acked).unwrap_or(usize::MAX);
+        let bytes = blocks.saturating_mul(self.blksize).min(self.data.len());
+        u64::try_from(bytes).unwrap_or(u64::MAX)
     }
 
     /// 数据块总数。

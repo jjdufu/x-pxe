@@ -2,6 +2,7 @@
 #![doc(test(attr(deny(warnings), forbid(unsafe_code))))]
 
 mod cmdline;
+pub mod dhcp_snippets;
 mod disk;
 mod filters;
 mod hashpw;

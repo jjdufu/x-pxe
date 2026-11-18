@@ -15,6 +15,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+xpxe-domain.workspace = true
+hex.workspace = true
+socket2.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
 xpxe-test-support.workspace = true

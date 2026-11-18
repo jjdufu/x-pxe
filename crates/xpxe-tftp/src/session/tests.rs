@@ -182,6 +182,49 @@ fn block_numbers_roll_over() -> TestResult {
     Ok(())
 }
 
+/// 大于 32 MiB 的文件在默认块大小下回绕块号并完整传完。
+///
+/// # Errors
+///
+/// 回绕行为或字节数不符时返回错误。
+#[test]
+fn large_file_wraps() -> TestResult {
+    let len = 33 * 1024 * 1024 + 17;
+    let data: Arc<[u8]> = Arc::from(vec![7_u8; len]);
+    let options = opts(&[("windowsize", "16")]);
+    let mut session = Session::new(data, &options, Limits::default());
+    let _oack = session.start();
+    let mut action = session.on_packet(&Packet::Ack { block: 0 });
+    let mut wraps = 0_u32;
+    loop {
+        let sent = blocks(&action)?;
+        wraps = wraps.saturating_add(u32::try_from(
+            sent.iter().filter(|block| **block == 0).count(),
+        )?);
+        let Some(last) = sent.last().copied() else {
+            return Err(Box::new(TestFailure::new("空窗口")));
+        };
+        action = session.on_packet(&Packet::Ack { block: last });
+        if action == Action::Done {
+            break;
+        }
+    }
+    ensure_eq(&wraps, &1, "33 MiB / 512 B 回绕一次")?;
+    ensure_eq(
+        &session.acked_bytes(),
+        &u64::try_from(len)?,
+        "确认字节数等于文件长度",
+    )?;
+    ensure_eq(&Limits::for_mtu(1500).largest_block, &1468, "MTU 1500")?;
+    ensure_eq(
+        &Limits::for_mtu(9000).largest_block,
+        &1468,
+        "巨帧仍按 1468 封顶",
+    )?;
+    ensure_eq(&Limits::for_mtu(576).largest_block, &544, "MTU 576")?;
+    Ok(())
+}
+
 /// 对端错误或非法报文终止传输。
 ///
 /// # Errors

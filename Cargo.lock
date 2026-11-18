@@ -1357,6 +1357,24 @@ dependencies = [
 [[package]]
 name = "xpxe-bootnet"
 version = "0.1.0"
+dependencies = [
+ "bytes",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "serde",
+ "serde_json",
+ "sha2",
+ "socket2",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "xpxe-dhcp",
+ "xpxe-domain",
+ "xpxe-test-support",
+ "xpxe-tftp",
+]
 
 [[package]]
 name = "xpxe-control"
@@ -1366,6 +1384,12 @@ version = "0.1.0"
 name = "xpxe-dhcp"
 version = "0.1.0"
 dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "socket2",
+ "tokio",
+ "xpxe-domain",
  "xpxe-test-support",
 ]
 

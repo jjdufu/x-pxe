@@ -5,8 +5,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use serde_json::json;
-use xpxe_tftp::server::{Source, serve};
-use xpxe_tftp::session::Limits;
+use xpxe_tftp::server::{ServeConfig, Source, TracingObserver, serve};
 
 use crate::common::{Args, LabError, LabResult, emit};
 
@@ -44,7 +43,13 @@ pub(crate) fn run(args: &Args) -> LabResult {
         let socket = tokio::net::UdpSocket::bind(listen).await?;
         emit(&json!({"event": "listening", "addr": listen.to_string()}))?;
         crate::logging::init();
-        serve(socket, Arc::new(Files(files)), Limits::default()).await?;
+        serve(
+            socket,
+            Arc::new(Files(files)),
+            ServeConfig::new(listen.ip()),
+            Arc::new(TracingObserver),
+        )
+        .await?;
         Ok(())
     })
 }

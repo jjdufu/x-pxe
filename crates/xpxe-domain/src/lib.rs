@@ -4,6 +4,7 @@
 //! 它不做 I/O、不读时钟（时间由调用方传入 [`Timestamp`]）、不依赖 tokio。
 #![doc(test(attr(deny(warnings), forbid(unsafe_code))))]
 
+pub mod bootnet;
 pub mod decision;
 pub mod init;
 pub mod inventory;
@@ -13,6 +14,11 @@ pub mod provision;
 pub mod value;
 pub mod versioning;
 
+pub use bootnet::{
+    BootNetwork, Counters, DirectiveSnapshot, ExternalCheck, FirmwareSet, Health, Heartbeat,
+    HeartbeatRecord, NetIface, Observation, ProbeReport, ReplyStage, RequestSummary, Responder,
+    ResponderClass, Sha256Hex, SnapshotEntry, TransferStage,
+};
 pub use decision::{
     BootDirective, BootOffer, BootTarget, DhcpAnswer, DhcpRequestView, DhcpRules, DirectiveTable,
     FirmwareName, IgnoreReason, IpxeEntry, UefiFirmware, answer, ipxe_entry,

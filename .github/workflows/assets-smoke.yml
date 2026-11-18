@@ -1,0 +1,48 @@
+# 资产联网冒烟（Step 7）：定时与手动触发，从官方源获取 iPXE 与 Debian netboot 并完成签名链校验、
+# 镜像 ABI 对齐检查。依赖公网，不进入 scripts/gate.sh，也不阻塞推送 CI。
+name: assets-smoke
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  assets-smoke:
+    name: 资产联网冒烟
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 安装锁定工具链（rust-toolchain.toml）
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: cargo-${{ runner.os }}-1.100.0-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-1.100.0-
+      - name: 获取并校验 ipxe_efi_x64、ipxe_undionly、debian_netboot_amd64
+        run: |
+          d="$(mktemp -d)"
+          cargo run --locked -p xpxe-lab -- assets-smoke --data "$d/data" --master-key-file "$d/mk" \
+            --fetch ipxe_efi_x64 --fetch ipxe_undionly --fetch debian_netboot_amd64 \
+            --mirror http://deb.debian.org/debian
+          cargo run --locked -p xpxe-lab -- assets-align --data "$d/data" --master-key-file "$d/mk" \
+            --mirror http://deb.debian.org/debian
+      - name: 旧 netboot 夹具必须判定为未对齐
+        run: |
+          if cargo run --locked -p xpxe-lab -- assets-align --mirror http://deb.debian.org/debian \
+               --kernel-file crates/xpxe-assets/tests/fixtures/debian/linux-head-old.bin; then
+            echo "旧 netboot 应判定为未对齐"; exit 1
+          fi

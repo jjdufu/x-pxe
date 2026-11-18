@@ -7,6 +7,7 @@ mod armor;
 mod catalog;
 mod error;
 mod fetch;
+mod ingest;
 mod ipxe;
 mod kernel;
 mod kind;
@@ -24,6 +25,11 @@ pub use error::{AssetsError, AssetsResult};
 pub use fetch::{
     FetchMeta, FetchPolicy, Fetched, Fetcher, FileTarget, MAX_REDIRECTS, OFFICIAL_HOSTS, Origin,
     StoredFile, store_bytes,
+};
+pub use ingest::{
+    AlignmentReport, INSTALLER_SUMS, Ingest, Mirror, NETBOOT_INITRD, NETBOOT_LINUX, NetbootExpect,
+    NetbootFiles, PACKAGES_GZ, PACKAGES_XZ, Source, VerifiedRelease, check_release_entry,
+    finish_netboot, netboot_expectations, verify_ipxe, verify_release,
 };
 pub use ipxe::{IpxeFormat, check_efi_x64, check_undionly};
 pub use kernel::{KernelVersion, kernel_version};

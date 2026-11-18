@@ -63,10 +63,39 @@ pub fn check_efi_x64(data: &[u8]) -> AssetsResult<IpxeFormat> {
             format!("Subsystem 为 {subsystem}，需要 EFI_APPLICATION（10）"),
         ));
     }
+    check_sections(data, pe_end, optional)?;
     Ok(IpxeFormat {
         format: "PE32+ x86-64 EFI application",
         version: find_version(data),
     })
+}
+
+/// 节表中每个节的原始数据都必须完整落在文件内（拒绝截断文件）。
+///
+/// # Errors
+///
+/// 节表越界或节数据超出文件末尾时返回 `bad_format`。
+fn check_sections(data: &[u8], coff: usize, optional: usize) -> AssetsResult<()> {
+    let count = usize::from(read_u16(data, coff.saturating_add(2))?);
+    let optional_size = usize::from(read_u16(data, coff.saturating_add(16))?);
+    let table = optional.saturating_add(optional_size);
+    if count == 0 {
+        return Err(fail("bad_format", "没有节"));
+    }
+    for index in 0..count {
+        let entry = table.saturating_add(index.saturating_mul(40));
+        let raw_size =
+            usize::try_from(read_u32(data, entry.saturating_add(16))?).unwrap_or(usize::MAX);
+        let raw_ptr =
+            usize::try_from(read_u32(data, entry.saturating_add(20))?).unwrap_or(usize::MAX);
+        if raw_ptr.saturating_add(raw_size) > data.len() {
+            return Err(AssetsError::new(
+                "bad_format",
+                format!("文件截断：第 {index} 节超出文件末尾（{} 字节）", data.len()),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// 检查 BIOS PXE 用的 `undionly.kpxe`：大小 32–512 KiB，以 iPXE PXE 前缀的

@@ -97,3 +97,28 @@ scripts/gate.sh
 - 联网冒烟拿到 3 个资产，均为 `verified`，Debian 资产显示签名密钥指纹与 ABI。
 - 对 `deb.debian.org` 的对齐结论为“已对齐”；人为指定一个旧 netboot 夹具时结论为“未对齐”并列出镜像现有 ABI。
 - `scripts/gate.sh` 全绿。
+
+## 7. 实现记录
+
+实现位于 `crates/xpxe-assets`（`armor`、`packet`、`pubkey`、`signature`、`trust`、`release`、`kernel`、`ipxe`、`align`、`fetch`、`kind`、`catalog`、`ingest`），实验室命令为 `xpxe-lab assets-smoke` / `assets-align`，联网冒烟在 `.github/workflows/assets-smoke.yml`（每周定时 + 手动）。
+
+与上文的偏差：
+
+| 项 | 计划 | 实现 | 原因 |
+| :--- | :--- | :--- | :--- |
+| iPXE EFI 官方地址 | `https://boot.ipxe.org/ipxe.efi`、`/snponly.efi` | `https://boot.ipxe.org/x86_64-efi/ipxe.efi`、`/x86_64-efi/snponly.efi`；`undionly.kpxe` 仍在根路径 | iPXE 2.0 起 boot.ipxe.org 按架构分目录，根路径 EFI 文件返回 404（2026-11-18 核实） |
+| iPXE 版本串 | 从二进制提取 `iPXE x.y.z+ (g<commit>)` | 只在二进制含明文版本串时记录，否则为空 | 官方预编译文件（EFI 与 kpxe）均为压缩映像，不含明文版本串 |
+| `undionly.kpxe` 检查 | 大小 32–512 KiB + 含 `iPXE` 版本串 | 大小 32–512 KiB + 以 iPXE PXE 前缀 `ljmp $0x07c0, …`（`EA xx xx C0 07`）开头 | 同上：压缩映像中没有 `iPXE` 字样 |
+| `.efi` 截断检测 | 头部字段 | 头部字段 + 节表每个节的原始数据必须完整在文件内 | 只截断尾部的文件头部字段仍然完整 |
+| 固件大小上限 | 未规定 | `firmware.cpio.gz` 1 GiB | trixie 的固件包约 473 MiB |
+| 临时文件名 | `/data/assets/.tmp/<uuidv7>` | `/data/assets/.tmp/<128 位随机十六进制>` | 不引入 uuid 依赖，作用相同 |
+| netboot 资产 | 内核与 initrd | 一个资产 = 内容寻址的清单文件（`linux`、`initrd.gz` 的哈希/大小与 ABI），两个成员文件各自内容寻址；`verify.files` 记录成员 | 资产表一行一个 SHA-256；删除时成员文件在无其他资产引用时一并删除 |
+| 信任根密钥范围 | `debian-archive-keyring` 导出 | trixie / bookworm 的归档自动签名、安全归档自动签名、稳定版发布密钥（主钥 + 签名子钥分别列入白名单）及 Debian CD 签名密钥 | 当前 trixie `InRelease` 同时由 bookworm 与 trixie 自动签名钥签名；固件 `SHA256SUMS.sign` 由 CD 密钥签名 |
+| 子钥绑定签名 | — | 不校验子钥绑定签名，改为把签名子钥指纹直接列入白名单 | 白名单本身就是逐把核对过的信任声明 |
+| 对齐结果缓存 24 h、arm 前拒绝 | 本步 | 本步提供 `Ingest::alignment` 返回带 `checked_at` 的报告；缓存与 arm 拦截在 Step 10 控制面实现 | 缓存与 arm 属于控制面状态 |
+| 校验失败记录 | 保留失败记录与原因 | 写入审计（`asset.verify_failed`，含错误码与原因），资产表不新增失败阶段 | 资产表阶段约束为 staged/verified/canary_passed/retired |
+| 金丝雀 | 会话固定候选资产 | `Pinned.canary_assets`（serde 默认空）记录候选资产；到达 `Ready` 后由控制面调用 `Catalog::mark_canary_passed` | arm 流程在 Step 10 |
+| 离线模式 | 禁止官方公网主机 | 官方源、自定义 URL、镜像三类来源都拒绝白名单内主机 | 防止通过“自定义 URL / 镜像”绕过 |
+| 内网镜像验收 | `assets-align --mirror http://192.168.2.5:8081/repository/debian` | 本机实验环境无法访问该 Nexus（连接超时），以 `deb.debian.org` 完成验收 | 环境限制；命令本身对任意镜像通用 |
+
+验收记录（2026-11-18，box 联网）：`assets-smoke` 获取 `ipxe_efi_x64`、`ipxe_undionly`、`ipxe_snponly_x64`、`debian_netboot_amd64`（ABI `6.12.107+deb13-amd64`，签名子钥 `4CB50190…2643E131`）、`debian_firmware_cpio`（CD 密钥 `DF9B9C49…6294BE9B`），全部 `verified`，审计链 6 条完整；`assets-align` 对 `deb.debian.org` 为“已对齐”，旧 netboot 夹具（`6.12.38+deb13-amd64`）为“未对齐”并列出 `6.12.107+deb13-amd64`、`6.12.94+deb13-amd64`。

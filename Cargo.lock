@@ -1429,6 +1429,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "webpki-roots",
+ "xpxe-assets",
  "xpxe-dhcp",
  "xpxe-domain",
  "xpxe-image",

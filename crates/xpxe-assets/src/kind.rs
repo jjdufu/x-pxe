@@ -76,7 +76,9 @@ impl AssetKind {
     pub const fn size_limit(self) -> u64 {
         match self {
             Self::IpxeUndionly | Self::IpxeEfiX64 | Self::IpxeSnponlyX64 => 4 * MIB,
-            Self::DebianNetbootAmd64 | Self::DebianFirmwareCpio => 256 * MIB,
+            Self::DebianNetbootAmd64 => 256 * MIB,
+            // trixie 的 firmware.cpio.gz 约 473 MiB（2026-11）
+            Self::DebianFirmwareCpio => 1024 * MIB,
         }
     }
 

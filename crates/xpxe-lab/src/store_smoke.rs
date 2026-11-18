@@ -25,7 +25,7 @@ impl From<StoreError> for LabError {
 /// # Errors
 ///
 /// 系统时钟早于 1970 年时返回错误。
-fn now() -> LabResult<Timestamp> {
+pub(crate) fn now() -> LabResult<Timestamp> {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|error| LabError(error.to_string()))?
@@ -38,7 +38,7 @@ fn now() -> LabResult<Timestamp> {
 /// # Errors
 ///
 /// 写文件失败时返回错误。
-fn ensure_key_file(path: &Path) -> LabResult<bool> {
+pub(crate) fn ensure_key_file(path: &Path) -> LabResult<bool> {
     if path.exists() {
         return Ok(false);
     }

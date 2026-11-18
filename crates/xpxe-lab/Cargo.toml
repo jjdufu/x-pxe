@@ -22,6 +22,7 @@ xpxe-domain.workspace = true
 xpxe-render.workspace = true
 xpxe-store.workspace = true
 xpxe-assets.workspace = true
+xpxe-redfish.workspace = true
 tokio.workspace = true
 axum.workspace = true
 tower-http.workspace = true

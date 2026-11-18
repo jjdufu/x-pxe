@@ -129,3 +129,32 @@ scripts/gate.sh
 - `boot.iso` 小于 5 MB，同一会话重复下载内容一致。
 - 实验室 HTTP 访问日志中，ISO 之后依次出现 `boot.ipxe`、`linux`、`initrd.gz`、`preseed.cfg` 请求。
 - `scripts/gate.sh` 全绿。
+
+## 6. 实现偏差（落地记录）
+
+| 计划 | 实现 | 理由 |
+| :--- | :--- | :--- |
+| ISO 内文件名 `esp.img` | `ESP.IMG` | ISO9660 一级文件名只允许大写字母、数字与下划线 |
+| 卷标 `XPXE-<会话前 8 位>` | 取会话 ID 前 8 个**字母数字**并大写（跳过 `-`），不足 8 个拒绝 | UUID 形式的会话 ID 前 8 位可能含连字符 |
+| `autoexec.ipxe` 模板 | 位于 `xpxe-render::redfish_boot`（模板 `templates/autoexec.ipxe.j2`）；网关、DNS 为空时省略对应 `set` 行；渲染结果补回末尾换行 | 渲染统一放在 `xpxe-render`；`xpxe-image` 保持零依赖 |
+| ISO 缓存 `/data/cache/iso/<session>.iso`、会话关闭即删 | Step 9 只提供确定性生成函数 `xpxe_image::session::build_boot_iso`；缓存与删除由控制面在 Step 10 实现 | 会话生命周期在控制面 |
+| 读回解析器 | `xpxe_image::readback`（ISO9660 PVD/根目录、El Torito 验证项校验和与各节、FAT12/16 BPB/簇链/长文件名），对外公开，损坏输入返回 `ImageError::Malformed` | 同时供实验室/控制面自检 |
+| 模拟 BMC 用 axum | 测试内手写 HTTP/1.1 + tokio-rustls 服务（`tests/redfish/server.rs`、`bmc.rs`），差异用 `Quirk` 枚举组合 | 不为测试开启 hyper server 相关特性；`max-struct-bools` 限制 |
+| 部署第 1 步前置检查（Armed、指纹已固定、Netboot 对齐、ISO 生成）、节点事件/审计、第 7 步 `Effect::EjectMedia` | 由控制面在 Step 10 编排；`xpxe-redfish` 提供第 2–6 步 `Session::deploy`（逐步产出 `DeployEvent`）、`Session::eject`、`Session::power` | 控制面在 Step 10 落地 |
+| `InsertMedia` 字段按画像裁剪 | Generic/HPE：`Image`+`Inserted`+`WriteProtected`；Dell/Supermicro：另加 `TransferProtocolType: HTTP`；Lenovo：另加 `TransferMethod: Stream` | sushy-tools 2.2 与 iLO 不接受多余字段；非 Generic 画像均标注“未验证” |
+| 厂商画像中的布尔开关 | `InsertFields` 用 `TransferFields` 枚举（Omit/ProtocolOnly/MethodAndProtocol）+ `write_protected` | 门禁 `max-struct-bools = 2` |
+| `HpeIlo6` 自动识别 | Vendor 含 HPE 时自动选 `HpeIlo5`，`HpeIlo6` 需节点规格手动指定 | 只凭 `ServiceRoot.Vendor` 无法区分代际 |
+| 202 + Task | 画像 `task_polling` 为真且有 `Location` 时轮询到 `TaskState` 结束（Exception/Killed/Cancelled 为失败），上限 `Timing::task`（默认 120 s） | 计划未给任务上限 |
+| 证书变化识别 | 固定模式握手失败时比较握手中看到的终端证书指纹，与固定值不同则报 `cert_changed`（消息含新旧指纹）；握手失败前不发送任何请求 | — |
+| `probe` 证书主题/有效期 | 自写极简 DER 解析（`x509.rs`），只取主题、颁发者、有效期，解析失败时为空 | 避免新增 X.509 依赖与重复依赖 |
+| 会话 | sushy-tools 2.2 无 `SessionService`，实验室走 Basic 回落；令牌会话由模拟 BMC 覆盖 | — |
+| 验收命令 `lab/run.sh R1 R2 --iso /tmp/boot.iso` | `lab/run.sh --iso /tmp/boot.iso R1` 与 `lab/run.sh R2` 分开运行；`--iso` 只覆盖 R1（R2 为静态地址，使用 `lab/sessions/redfish-uefi-static.json` 生成的 ISO）；选项须写在场景名之前 | R1/R2 的服务模式不同（proxy/noproxy）；两份会话脚本不同 |
+| 会话脚本 `p/<token>/boot.ipxe` | 实验室由 `lab/lib/redfish.sh` 写入：R1 复制通用 `boot.ipxe`，R2 写静态内核参数脚本 | 正式渲染在控制面（Step 10） |
+| `redfish-bios-reject` | `xpxe-lab node-check --spec lab/nodes/redfish-bios.json` 走 `NodeSpec::new` 约束（控制面登记 API 在 Step 10） | — |
+
+### 实验室验收记录（2026-11-18 Asia/Shanghai）
+
+- `lab/run.sh redfish-bios-reject` PASS：`/channel redfish_requires_uefi`；UEFI + Redfish 登记通过。
+- `lab/run.sh redfish-pin-change` PASS：更换 sushy-tools 证书后用旧指纹部署失败（`cert_changed`，含新旧指纹），sushy 未收到 InsertMedia/PATCH；重新探测得到新指纹后调用成功；结束后恢复原证书。
+- `lab/run.sh --iso /tmp/boot.iso R1` PASS（38 s）：ISO 1 077 248 字节；重复生成与两次下载字节一致；`xpxe-lab redfish deploy`（Generic，Basic 回落）insert→inserted→boot_override→reset；OVMF 一次性 CD 启动 → `p/lab-redfish-r1/boot.ipxe` → d-i；访问日志依次 boot.iso → boot.ipxe → linux → initrd.gz → preseed.cfg。
+- `lab/run.sh R2` PASS（20 s）：同上，静态地址 10.77.0.60；H6：iPXE 与 d-i 均未发 DHCP。

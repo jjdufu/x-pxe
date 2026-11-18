@@ -23,6 +23,7 @@ xpxe-domain = { path = "crates/xpxe-domain" }
 xpxe-render = { path = "crates/xpxe-render" }
 xpxe-assets = { path = "crates/xpxe-assets" }
 xpxe-store = { path = "crates/xpxe-store" }
+xpxe-redfish = { path = "crates/xpxe-redfish" }
 # 第三方：统一关闭默认特性，按需开启
 tokio = { version = "~1.46", default-features = false, features = ["rt-multi-thread", "net", "time", "fs", "io-util", "signal", "sync"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query", "form", "matched-path", "original-uri"] }

@@ -1,0 +1,9 @@
+{
+  "hostname": "lab-redfish-uefi",
+  "fqdn": null,
+  "mac": "52:54:00:77:01:a1",
+  "os_family": "debian13",
+  "firmware": "uefi",
+  "channel": { "type": "redfish", "bmc": "lab-sushy" },
+  "network": { "type": "dhcp" }
+}

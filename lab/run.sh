@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# 场景编排：lab/run.sh [-j N] [--keep] [--www <目录>] [--bootnet <xpxe-bootnet>] <场景…>|all|capture|services|stop-services
+# 场景编排：lab/run.sh [-j N] [--keep] [--www <目录>] [--bootnet <xpxe-bootnet>] [--iso <boot.iso>] <场景…>|all|capture|services|stop-services
 # --bootnet：由正式 xpxe-bootnet（+ xpxe-lab control-stub 充当控制面）代替 proxydhcp/tftp 探针应答（Step 8）
 # Step 8 场景（需 --bootnet）：rogue-proxy（先 lab/dhcp.sh start rogue）| redfish-only-ports
+# Step 9 场景：R1/R2（--iso <boot.iso> 覆盖 R1 的会话 ISO）| redfish-bios-reject | redfish-pin-change
 # Step 4 装机场景：install-uefi | install-bios | install-static（完整跑完 d-i 并从系统盘重启）
 # Step 5 初始化等价性：init-equivalence [--plan <plan.json>] [--legacy <脚本>]（lab/lib/init-equivalence.sh）
 # 每个场景输出 PASS/FAIL、耗时与日志目录（lab/out/<场景>/）。
 source "$(dirname "$0")/lib/common.sh"
 source "$(dirname "$0")/lib/init-equivalence.sh"
-JOBS=1 KEEP=0 WWW_OVERRIDE="" BOOTNET=""
+JOBS=1 KEEP=0 WWW_OVERRIDE="" BOOTNET="" ISO_OVERRIDE=""
 MODE_FILE="${WORK}/bootnet-mode"
 TOKEN_FILE="${WORK}/bootnet-token"
 BASE="http://${LAB_IP}:8080"
@@ -443,6 +444,8 @@ run_one() { # <id> <tap>
     H9a|H9b) sc_H9 "${id}" "${tap}" ;;
     G1) sc_G1 ;;
     R1|R2) source "${LAB_DIR}/lib/redfish.sh"; sc_R "${id}" "${tap}" ;;
+    redfish-bios-reject) source "${LAB_DIR}/lib/redfish.sh"; sc_bios_reject ;;
+    redfish-pin-change) source "${LAB_DIR}/lib/redfish.sh"; sc_pin_change ;;
     install-uefi|install-bios|install-static) sc_I "${id}" "${tap}" ;;
     rogue-proxy) sc_rogue ;;
     redfish-only-ports) sc_redfish_ports ;;
@@ -483,7 +486,7 @@ collect_fixtures() {
 }
 
 while [ $# -gt 0 ]; do
-  case "$1" in -j) JOBS="$2"; shift 2 ;; --bootnet) BOOTNET="$(realpath "$2")"; shift 2 ;; --keep) KEEP=1; shift ;; --www) WWW_OVERRIDE="$2"; shift 2 ;; *) break ;; esac
+  case "$1" in -j) JOBS="$2"; shift 2 ;; --bootnet) BOOTNET="$(realpath "$2")"; shift 2 ;; --iso) ISO_OVERRIDE="$(realpath "$2")"; shift 2 ;; --keep) KEEP=1; shift ;; --www) WWW_OVERRIDE="$2"; shift 2 ;; *) break ;; esac
 done
 [ $# -gt 0 ] || { echo "用法：lab/run.sh [-j N] [--keep] <场景…>|all|capture|services|stop-services" >&2; exit 2; }
 case "$1" in

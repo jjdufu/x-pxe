@@ -1,0 +1,9 @@
+{
+  "hostname": "lab-redfish-bios",
+  "fqdn": null,
+  "mac": "52:54:00:77:01:a3",
+  "os_family": "debian13",
+  "firmware": "bios",
+  "channel": { "type": "redfish", "bmc": "lab-sushy" },
+  "network": { "type": "dhcp" }
+}

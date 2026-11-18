@@ -68,6 +68,11 @@ impl Args {
         Self { items }
     }
 
+    /// 第一个参数（二级子命令，例如 `redfish probe` 中的 `probe`）。
+    pub(crate) fn first(&self) -> Option<String> {
+        self.items.first().cloned()
+    }
+
     /// 取某个键的全部取值。
     pub(crate) fn values(&self, key: &str) -> Vec<String> {
         self.items

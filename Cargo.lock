@@ -1457,6 +1457,7 @@ dependencies = [
  "xpxe-dhcp",
  "xpxe-domain",
  "xpxe-image",
+ "xpxe-redfish",
  "xpxe-render",
  "xpxe-store",
  "xpxe-test-support",

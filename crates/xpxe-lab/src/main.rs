@@ -24,7 +24,9 @@ mod control_stub;
 mod deps_check;
 mod iso;
 mod logging;
+mod node_check;
 mod proxydhcp;
+mod redfish;
 mod render;
 mod render_plan;
 mod scan;
@@ -38,7 +40,7 @@ use std::process::ExitCode;
 use common::{Args, LabError, LabResult};
 
 /// 用法说明。
-const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|control-stub|serve|capture|dhcp-scan|pxe-client|iso|render|render-plan|store-smoke|assets-smoke|assets-align> [参数…]";
+const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|control-stub|serve|capture|dhcp-scan|pxe-client|iso|redfish|node-check|render|render-plan|store-smoke|assets-smoke|assets-align> [参数…]";
 
 /// 运行依赖预检并打印报告。
 ///
@@ -65,6 +67,8 @@ fn main() -> ExitCode {
         "proxydhcp" => proxydhcp::run(&args),
         "tftp" => tftp::run(&args),
         "control-stub" => control_stub::run(&args),
+        "redfish" => redfish::run(&args),
+        "node-check" => node_check::run(&args),
         "serve" => serve::run(&args),
         "capture" => capture::run(&args),
         "dhcp-scan" => scan::run_scan(&args),

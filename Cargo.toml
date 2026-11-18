@@ -22,6 +22,7 @@ xpxe-image = { path = "crates/xpxe-image" }
 xpxe-domain = { path = "crates/xpxe-domain" }
 xpxe-render = { path = "crates/xpxe-render" }
 xpxe-assets = { path = "crates/xpxe-assets" }
+xpxe-store = { path = "crates/xpxe-store" }
 # 第三方：统一关闭默认特性，按需开启
 tokio = { version = "~1.46", default-features = false, features = ["rt-multi-thread", "net", "time", "fs", "io-util", "signal", "sync"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query", "form", "matched-path", "original-uri"] }
@@ -260,3 +261,11 @@ undocumented_unsafe_blocks = "deny"
 multiple_unsafe_ops_per_block = "deny"
 unnecessary_safety_comment = "deny"
 unnecessary_safety_doc = "deny"
+
+# argon2id（m = 64 MiB，t = 3）在未优化构建下单次哈希需数秒；只对它及其哈希核心开优化，
+# 测试仍使用生产参数，不另设弱参数路径。
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

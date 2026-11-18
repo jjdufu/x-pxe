@@ -100,3 +100,15 @@ scripts/gate.sh
 - 数据目录中找不到主密钥文件或其内容。
 - `store-smoke` 输出审计链校验通过、备份文件可独立打开。
 - `scripts/gate.sh` 全绿。
+
+## 7. 实现记录（与上文的差异）
+
+- 句柄式 API：`Store::configs()/nodes()/accounts()/tokens()/assets()/audit()/secrets()/observations()` 返回按值传递的轻量句柄（门禁的 `multiple_inherent_impl` 不允许把 `impl Store` 拆到各文件）。账户文件仍为 `auth.rs`，句柄名 `Accounts`。
+- 领域层不读时钟，本 crate 同样不读：所有与时间有关的方法显式接收 `now: Timestamp`。
+- 装机令牌：`Tokens::issue(&SessionRequest, now) -> IssuedSession { session, boot, agent, expires_at }`，`resolve`、`authorize(token, Resource, now)`、`consume_once(session, ServedDoc, now)`、`close`。
+- 节点事件：`Nodes::record(node_id, &EventRecord)` 在一个事务内写事件并更新运行态；`(node_id, event_id)` 重复返回 `EventInsert::Duplicate`，转换前状态不符返回 `StoreError::StateChanged`。
+- 登录退避：连续失败 n 次（n ≥ 5）后等待 2^(n−4) 秒（2、4、8 …），上限 900 秒；用户名与来源 IP 分别计数，取较大者。
+- `MasterKey::load` 返回 `(密钥, 权限告警列表)`，由调用方写日志；`Store::rotate_master_key(data_dir, old, &new)` 供 `xpxe-control rotate-master-key` 调用（CLI 在 Step 10 接入，`audit export` 同）。
+- `rusqlite` 的 `query_row`/`query_map` 闭包返回 `rusqlite::Error`（≥ 64 字节，触发 `result_large_err`），统一改用 `sqlval::{query_opt, query_vec, query_i64}`。
+- argon2 在未优化构建下过慢，工作区 `[profile.dev.package.argon2|blake2]` 设 `opt-level = 3`；测试仍使用生产参数（m = 64 MiB，t = 3，p = 1）。
+- `store-smoke` 在主密钥文件不存在时生成 32 字节随机密钥（base64，0400）。

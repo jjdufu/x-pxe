@@ -50,6 +50,12 @@ jobs:
         run: |
           cargo build --locked --target x86_64-unknown-linux-musl --workspace --bins
           cargo run --locked -p xpxe-lab -- deps-check
+      - name: 存储层冒烟（Step 6）
+        run: |
+          d="$(mktemp -d)"
+          cargo run --locked -p xpxe-lab -- store-smoke --data "$d/data" --master-key-file "$d/mk"
+          test ! -e "$d/data/master.key"
+          if grep -rqa "$(base64 -w0 "$d/mk")" "$d/data"; then echo "数据目录含主密钥"; exit 1; fi
 
   web-gate:
     name: Web 门禁（scripts/web-gate.sh）

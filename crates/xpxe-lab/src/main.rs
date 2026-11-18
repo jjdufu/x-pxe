@@ -11,6 +11,7 @@
 //! - `iso`：生成 UEFI 引导 ISO。
 //! - `render`：用内置预设与节点规格渲染装机输入（Step 4）。
 //! - `render-plan`：用内置初始化预设渲染计划文件（Step 5）。
+//! - `store-smoke`：存储层冒烟（建库、版本、回滚、审计、备份，Step 6）。
 //!
 //! 发 DHCP 的子命令只在带 10.77.0.0/24 直连路由且不承载默认路由的网卡上运行。
 
@@ -24,6 +25,7 @@ mod render;
 mod render_plan;
 mod scan;
 mod serve;
+mod store_smoke;
 mod tftp;
 
 use std::io::Write as _;
@@ -32,7 +34,7 @@ use std::process::ExitCode;
 use common::{Args, LabError, LabResult};
 
 /// 用法说明。
-const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|serve|capture|dhcp-scan|pxe-client|iso|render|render-plan> [参数…]";
+const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|serve|capture|dhcp-scan|pxe-client|iso|render|render-plan|store-smoke> [参数…]";
 
 /// 运行依赖预检并打印报告。
 ///
@@ -65,6 +67,7 @@ fn main() -> ExitCode {
         "iso" => iso::run(&args),
         "render" => render::run(&args),
         "render-plan" => render_plan::run(&args),
+        "store-smoke" => store_smoke::run(&args),
         _ => Err(LabError(USAGE.to_owned())),
     };
     match outcome {

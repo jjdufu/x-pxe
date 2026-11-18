@@ -1414,6 +1414,7 @@ dependencies = [
  "xpxe-domain",
  "xpxe-image",
  "xpxe-render",
+ "xpxe-store",
  "xpxe-test-support",
  "xpxe-tftp",
 ]
@@ -1442,6 +1443,20 @@ dependencies = [
 [[package]]
 name = "xpxe-store"
 version = "0.1.0"
+dependencies = [
+ "argon2",
+ "base64",
+ "chacha20poly1305",
+ "hex",
+ "ring",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "time",
+ "xpxe-domain",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-test-support"

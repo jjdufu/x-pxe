@@ -514,9 +514,19 @@ fn change_of(value: &Value) -> ChangeValue {
 
 /// 是否为 `Secret` 的序列化形状。
 fn is_secret(value: &Value) -> bool {
-    value.as_object().is_some_and(|map| {
-        map.len() == 2 && map.contains_key("secret_ref") && map.contains_key("fingerprint")
-    })
+    value.as_object().is_some_and(is_secret_map)
+}
+
+/// `Secret` 或带 `hash` 的口令哈希包装。
+fn is_secret_map(map: &Map<String, Value>) -> bool {
+    if !map.contains_key("secret_ref") || !map.contains_key("fingerprint") {
+        return false;
+    }
+    match map.len() {
+        2 => true,
+        3 => map.contains_key("hash"),
+        _ => false,
+    }
 }
 
 /// 追加一个 JSON Pointer 段。

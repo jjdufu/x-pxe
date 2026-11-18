@@ -1,0 +1,14 @@
+{
+  "hostname": "lab-static",
+  "fqdn": "lab-static.lab",
+  "mac": "52:54:00:77:01:16",
+  "os_family": "debian13",
+  "firmware": "uefi",
+  "channel": { "type": "lan" },
+  "network": {
+    "type": "static",
+    "address": "10.77.0.16/24",
+    "gateway": "10.77.0.1",
+    "dns": ["10.77.0.1"]
+  }
+}

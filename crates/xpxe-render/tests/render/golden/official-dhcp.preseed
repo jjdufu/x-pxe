@@ -1,0 +1,62 @@
+d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+d-i console-setup/ask_detect boolean false
+
+d-i netcfg/choose_interface select 52:54:00:77:01:14
+d-i netcfg/get_hostname string lab-uefi
+d-i netcfg/get_domain string lab
+d-i netcfg/hostname string lab-uefi
+d-i hw-detect/load_firmware boolean true
+
+d-i mirror/country string manual
+d-i mirror/protocol string https
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string 
+d-i mirror/suite string trixie
+d-i mirror/udeb/suite string trixie
+
+d-i apt-setup/services-select multiselect security,updates
+d-i apt-setup/security_host string security.debian.org
+d-i apt-setup/security_path string /debian-security
+d-i apt-setup/non-free-firmware boolean true
+d-i apt-setup/contrib boolean false
+d-i apt-setup/non-free boolean false
+
+d-i passwd/root-login boolean false
+d-i passwd/make-user boolean true
+d-i passwd/user-fullname string Debian Admin
+d-i passwd/username string debian
+d-i passwd/user-password-crypted password $6$xpxesaltxpxesalt$iFdzdNjxB/OBPF2XSlT.u.sRRMJraJo0vQhUZ5SC65wTzKtg3D9EK5pe8kURU4jdOBRVVOFFTXkn0lEjKv7Am.
+d-i passwd/user-default-groups string sudo
+
+d-i clock-setup/utc boolean true
+d-i time/zone string Asia/Shanghai
+d-i clock-setup/ntp boolean false
+
+d-i partman-auto/method string lvm
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-md/device_remove_md boolean true
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+d-i partman-auto/choose_recipe select atomic
+d-i partman-auto-lvm/guided_size string max
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+d-i base-installer/kernel/image string linux-image-amd64
+tasksel tasksel/first multiselect standard, ssh-server
+d-i pkgsel/upgrade select safe-upgrade
+popularity-contest popularity-contest/participate boolean false
+
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/bootdev string default
+
+d-i finish-install/reboot_in_progress note
+d-i debian-installer/exit/poweroff boolean false
+
+d-i preseed/early_command string wget -q -O /dev/null --post-data 'event=installer.started event_id=ev-00000001' 'https://example.com:8080/events/installer.started' || true
+d-i partman/early_command string wget -q -O /tmp/xpxe-partman-early.sh 'https://example.com:8080/p/boot0001/partman-early.sh' && sh /tmp/xpxe-partman-early.sh
+d-i preseed/late_command string wget -q -O /tmp/xpxe-late.sh 'https://example.com:8080/p/boot0001/late.sh' && sh /tmp/xpxe-late.sh

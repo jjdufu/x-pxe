@@ -1,0 +1,1 @@
+wget -q -O /dev/null --post-data {{ payload | sh_quote }} {{ url | sh_quote }} || true

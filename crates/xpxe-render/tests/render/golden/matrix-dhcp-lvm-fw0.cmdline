@@ -1,0 +1,1 @@
+auto=true priority=critical preseed/url=http://10.77.0.1:8080/p/boot0001/preseed.cfg preseed/url/checksum=48a0283964b4ae7a534a639127a99de8 BOOTIF=01-52-54-00-77-01-14 netcfg/choose_interface=52:54:00:77:01:14 hostname=lab-uefi domain=lab locale=en_US.UTF-8 keymap=us console=tty0 console=ttyS0,115200n8

@@ -1,0 +1,9 @@
+{
+  "hostname": "lab-uefi",
+  "fqdn": "lab-uefi.lab",
+  "mac": "52:54:00:77:01:14",
+  "os_family": "debian13",
+  "firmware": "uefi",
+  "channel": { "type": "lan" },
+  "network": { "type": "dhcp" }
+}

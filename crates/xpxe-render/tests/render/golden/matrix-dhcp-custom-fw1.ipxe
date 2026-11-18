@@ -1,0 +1,11 @@
+#!ipxe
+set base http://10.77.0.1:8080/p/boot0001
+echo x-pxe: installing lab-uefi (52:54:00:77:01:14) session sess01
+kernel ${base}/linux initrd=initrd.gz auto=true priority=critical preseed/url=http://10.77.0.1:8080/p/boot0001/preseed.cfg preseed/url/checksum=000fda0cf06af870614c2a92500a7366 BOOTIF=01-52-54-00-77-01-14 netcfg/choose_interface=52:54:00:77:01:14 hostname=lab-uefi domain=lab locale=en_US.UTF-8 keymap=us console=tty0 console=ttyS0,115200n8
+initrd ${base}/initrd.gz
+initrd ${base}/firmware.cpio.gz
+boot || goto failed
+:failed
+echo x-pxe: boot failed, falling back to local disk in 10 s
+sleep 10
+exit

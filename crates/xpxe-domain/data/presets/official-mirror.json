@@ -1,0 +1,80 @@
+{
+  "name": "official-mirror",
+  "locale": "en_US.UTF-8",
+  "keymap": "us",
+  "timezone": "Asia/Shanghai",
+  "ntp": [],
+  "mirror": {
+    "scheme": "https",
+    "host_port": "deb.debian.org",
+    "directory": "/debian"
+  },
+  "security": {
+    "type": "official"
+  },
+  "suites": {
+    "updates": true,
+    "backports": false
+  },
+  "components": {
+    "items": [
+      "main",
+      "non_free_firmware"
+    ]
+  },
+  "extra_repos": [],
+  "accounts": {
+    "root": {
+      "type": "disabled"
+    },
+    "primary_user": {
+      "name": "debian",
+      "full_name": "Debian Admin",
+      "hash": {
+        "secret_ref": "crypt_hash",
+        "fingerprint": "75a655bd",
+        "hash": "$6$xpxesaltxpxesalt$iFdzdNjxB/OBPF2XSlT.u.sRRMJraJo0vQhUZ5SC65wTzKtg3D9EK5pe8kURU4jdOBRVVOFFTXkn0lEjKv7Am."
+      },
+      "groups": [
+        "sudo"
+      ]
+    }
+  },
+  "tasks": {
+    "items": [
+      "ssh-server",
+      "standard"
+    ]
+  },
+  "pkgsel_upgrade": "safe_upgrade",
+  "disk": {
+    "include": [],
+    "size_gib": {
+      "min": 16
+    },
+    "exclude_models": [
+      "Virtual",
+      "iDRAC",
+      "iLO",
+      "AMI",
+      "Cypress",
+      "Linux File-Stor",
+      "RMM",
+      "Virtual CDROM",
+      "Virtual Floppy"
+    ],
+    "prefer": "unique"
+  },
+  "partitioning": {
+    "type": "atomic_lvm"
+  },
+  "console": {
+    "items": [
+      "tty0"
+    ]
+  },
+  "firmware_cpio": true,
+  "debug": {
+    "type": "off"
+  }
+}

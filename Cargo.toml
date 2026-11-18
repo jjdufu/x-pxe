@@ -19,6 +19,9 @@ xpxe-test-support = { path = "crates/xpxe-test-support" }
 xpxe-dhcp = { path = "crates/xpxe-dhcp" }
 xpxe-tftp = { path = "crates/xpxe-tftp" }
 xpxe-image = { path = "crates/xpxe-image" }
+xpxe-domain = { path = "crates/xpxe-domain" }
+xpxe-render = { path = "crates/xpxe-render" }
+xpxe-assets = { path = "crates/xpxe-assets" }
 # 第三方：统一关闭默认特性，按需开启
 tokio = { version = "~1.46", default-features = false, features = ["rt-multi-thread", "net", "time", "fs", "io-util", "signal", "sync"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query", "form", "matched-path", "original-uri"] }
@@ -37,6 +40,7 @@ webpki-roots = { version = "1", default-features = false }
 socket2 = { version = "~0.5.10", default-features = false, features = ["all"] }
 minijinja = { version = "3", default-features = false, features = ["serde"] }
 sha2 = { version = "0.11", default-features = false }
+sha1 = { version = "0.11", default-features = false }
 hex = { version = "0.4", default-features = false, features = ["std"] }
 base64 = { version = "0.23", default-features = false, features = ["std"] }
 lzma-rs = { version = "0.3", default-features = false }

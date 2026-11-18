@@ -1,0 +1,14 @@
+[Unit]
+Description=x-pxe first boot configuration
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/var/lib/xpxe/plan.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/xpxe-agent run --plan /var/lib/xpxe/plan.json
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

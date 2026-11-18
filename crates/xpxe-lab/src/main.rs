@@ -9,6 +9,7 @@
 //! - `dhcp-scan`：列出实验网上所有应答的 DHCP 服务器。
 //! - `pxe-client`：发出指定类型的 PXE DISCOVER（及 4011 REQUEST）。
 //! - `iso`：生成 UEFI 引导 ISO。
+//! - `render`：用内置预设与节点规格渲染装机输入（Step 4）。
 //!
 //! 发 DHCP 的子命令只在带 10.77.0.0/24 直连路由且不承载默认路由的网卡上运行。
 
@@ -18,6 +19,7 @@ mod deps_check;
 mod iso;
 mod logging;
 mod proxydhcp;
+mod render;
 mod scan;
 mod serve;
 mod tftp;
@@ -28,8 +30,7 @@ use std::process::ExitCode;
 use common::{Args, LabError, LabResult};
 
 /// 用法说明。
-const USAGE: &str =
-    "用法：xpxe-lab <deps-check|proxydhcp|tftp|serve|capture|dhcp-scan|pxe-client|iso> [参数…]";
+const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|serve|capture|dhcp-scan|pxe-client|iso|render> [参数…]";
 
 /// 运行依赖预检并打印报告。
 ///
@@ -60,6 +61,7 @@ fn main() -> ExitCode {
         "dhcp-scan" => scan::run_scan(&args),
         "pxe-client" => scan::run_pxe(&args),
         "iso" => iso::run(&args),
+        "render" => render::run(&args),
         _ => Err(LabError(USAGE.to_owned())),
     };
     match outcome {

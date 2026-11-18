@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+wget -q -O /tmp/xpxe-disk-select.sh {{ disk_url | sh_quote }}
+if ! sh /tmp/xpxe-disk-select.sh > /tmp/xpxe-disk-select.out; then
+    inv=$(cat /tmp/xpxe-disk-select.out 2>/dev/null || true)
+    wget -q -O /dev/null --post-data {{ fail_prefix | sh_quote }}"${inv}" {{ fail_url | sh_quote }} || true
+    exit 1
+fi
+disk=$(sed -n 's/^SELECTED=//p' /tmp/xpxe-disk-select.out)
+if [ -z "${disk}" ]; then
+    exit 1
+fi
+echo "${disk}" > /tmp/xpxe-disk-selected
+debconf-set partman-auto/disk "${disk}"
+debconf-set grub-installer/bootdev "${disk}"
+{% if custom %}
+if [ -e /sys/firmware/efi ]; then
+    debconf-set partman-auto/expert_recipe {{ uefi_recipe | sh_quote }}
+else
+    debconf-set partman-auto/expert_recipe {{ bios_recipe | sh_quote }}
+fi
+{% endif %}
+exit 0

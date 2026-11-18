@@ -895,6 +895,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aacc4cc499359472b4abe1bf11d0b12e688af9a805fa5e3016f9a386dc2d0214"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
 name = "sha2"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1309,6 +1320,12 @@ version = "0.1.0"
 [[package]]
 name = "xpxe-assets"
 version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "sha1",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-bootnet"
@@ -1386,7 +1403,9 @@ dependencies = [
  "tracing-subscriber",
  "webpki-roots",
  "xpxe-dhcp",
+ "xpxe-domain",
  "xpxe-image",
+ "xpxe-render",
  "xpxe-test-support",
  "xpxe-tftp",
 ]
@@ -1398,6 +1417,18 @@ version = "0.1.0"
 [[package]]
 name = "xpxe-render"
 version = "0.1.0"
+dependencies = [
+ "hex",
+ "minijinja",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha-crypt",
+ "sha2",
+ "xpxe-assets",
+ "xpxe-domain",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-store"

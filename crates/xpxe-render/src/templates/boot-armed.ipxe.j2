@@ -1,0 +1,11 @@
+#!ipxe
+set base {{ boot_base }}/p/{{ boot_token }}
+echo x-pxe: installing {{ hostname }} ({{ mac }}) session {{ session_short }}
+kernel ${base}/linux initrd=initrd.gz {{ cmdline }}
+initrd ${base}/initrd.gz
+{% if firmware_cpio %}initrd ${base}/firmware.cpio.gz
+{% endif %}boot || goto failed
+:failed
+echo x-pxe: boot failed, falling back to local disk in 10 s
+sleep 10
+exit

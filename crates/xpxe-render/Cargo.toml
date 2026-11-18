@@ -15,3 +15,15 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+hex.workspace = true
+minijinja.workspace = true
+ring.workspace = true
+serde.workspace = true
+sha-crypt.workspace = true
+sha2.workspace = true
+xpxe-assets.workspace = true
+xpxe-domain.workspace = true
+
+[dev-dependencies]
+xpxe-test-support.workspace = true
+serde_json.workspace = true

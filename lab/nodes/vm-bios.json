@@ -1,0 +1,9 @@
+{
+  "hostname": "lab-bios",
+  "fqdn": "lab-bios.lab",
+  "mac": "52:54:00:77:01:15",
+  "os_family": "debian13",
+  "firmware": "bios",
+  "channel": { "type": "lan" },
+  "network": { "type": "dhcp" }
+}

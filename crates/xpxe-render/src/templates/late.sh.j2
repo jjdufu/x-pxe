@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+mkdir -p /target/usr/local/sbin /target/var/lib/xpxe /target/etc/systemd/system
+wget -O /target/usr/local/sbin/xpxe-agent {{ agent_url | sh_quote }}
+echo {{ agent_check | sh_quote }} | sha256sum -c
+chmod 0755 /target/usr/local/sbin/xpxe-agent
+wget -O /target/var/lib/xpxe/plan.json {{ plan_url | sh_quote }}
+echo {{ plan_check | sh_quote }} | sha256sum -c
+chmod 0600 /target/var/lib/xpxe/plan.json
+cat > /target/etc/systemd/system/xpxe-firstboot.service << 'XPXE_UNIT'
+{{ unit }}
+XPXE_UNIT
+in-target systemctl enable xpxe-firstboot.service
+in-target cat /etc/network/interfaces || true
+wget -q -O /dev/null --post-data {{ finished | sh_quote }} {{ finished_url | sh_quote }} || true

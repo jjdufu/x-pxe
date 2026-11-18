@@ -1,0 +1,76 @@
+{
+  "name": "nexus-lvm",
+  "locale": "en_US.UTF-8",
+  "keymap": "us",
+  "timezone": "Asia/Shanghai",
+  "ntp": [
+    "192.168.2.2"
+  ],
+  "mirror": {
+    "scheme": "http",
+    "host_port": "192.168.2.5:8081",
+    "directory": "/repository/debian"
+  },
+  "security": {
+    "type": "disabled"
+  },
+  "suites": {
+    "updates": false,
+    "backports": false
+  },
+  "components": {
+    "items": [
+      "main"
+    ]
+  },
+  "extra_repos": [],
+  "accounts": {
+    "root": {
+      "type": "hash",
+      "hash": {
+        "secret_ref": "crypt_hash",
+        "fingerprint": "75a655bd",
+        "hash": "$6$xpxesaltxpxesalt$iFdzdNjxB/OBPF2XSlT.u.sRRMJraJo0vQhUZ5SC65wTzKtg3D9EK5pe8kURU4jdOBRVVOFFTXkn0lEjKv7Am."
+      }
+    },
+    "primary_user": null
+  },
+  "tasks": {
+    "items": [
+      "ssh-server",
+      "standard"
+    ]
+  },
+  "pkgsel_upgrade": "none",
+  "disk": {
+    "include": [],
+    "size_gib": {
+      "min": 16
+    },
+    "exclude_models": [
+      "Virtual",
+      "iDRAC",
+      "iLO",
+      "AMI",
+      "Cypress",
+      "Linux File-Stor",
+      "RMM",
+      "Virtual CDROM",
+      "Virtual Floppy"
+    ],
+    "prefer": "unique"
+  },
+  "partitioning": {
+    "type": "atomic_lvm"
+  },
+  "console": {
+    "items": [
+      "tty0",
+      "ttyS0,115200n8"
+    ]
+  },
+  "firmware_cpio": false,
+  "debug": {
+    "type": "off"
+  }
+}

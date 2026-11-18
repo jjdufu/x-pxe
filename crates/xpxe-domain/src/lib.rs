@@ -8,6 +8,7 @@ pub mod decision;
 pub mod inventory;
 pub mod lifecycle;
 pub mod option93;
+pub mod provision;
 pub mod value;
 pub mod versioning;
 
@@ -23,6 +24,14 @@ pub use lifecycle::{
     NodeRuntime, NodeState, Outcome, SessionId, Timestamp, Transition, TransitionError, Ttl, apply,
 };
 pub use option93::ClientArch;
+pub use provision::{
+    AptComponent, AptRepo, ArmoredKey, ComponentSet, ConsoleSet, ConsoleSpec, CryptHash,
+    CryptSecret, DiskMatch, DiskRule, DiskTransport, FsType, HostPort, InstallAccounts,
+    InstallerDebug, Keymap, Mirror, MirrorScheme, MountPoint, NtpServer, PartitionScheme,
+    PartitionSpec, Prefer, PrimaryUser, Profile, ProfileParts, RootAccount, SecuritySource,
+    SizeRange, SizeSpec, SuiteSet, TaskName, TaskSet, UnixAbsPath, UnixGroup, Upgrade,
+    default_exclude_models, hash_fingerprint,
+};
 pub use value::{
     BootToken, Fqdn, Hostname, HttpUrl, Ipv4Cidr, Locale, MacAddr, PackageName, ParseError,
     SafeText, SshPublicKey, TimeZone, UnixUser,

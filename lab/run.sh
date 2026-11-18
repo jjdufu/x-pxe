@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# 场景编排：lab/run.sh [-j N] [--keep] <场景…>|all|capture|services|stop-services
+# 场景编排：lab/run.sh [-j N] [--keep] [--www <目录>] <场景…>|all|capture|services|stop-services
+# Step 4 装机场景：install-uefi | install-bios | install-static（完整跑完 d-i 并从系统盘重启）
 # 每个场景输出 PASS/FAIL、耗时与日志目录（lab/out/<场景>/）。
 source "$(dirname "$0")/lib/common.sh"
-JOBS=1 KEEP=0
+JOBS=1 KEEP=0 WWW_OVERRIDE=""
 BASE="http://${LAB_IP}:8080"
 mac_of() { echo "52:54:00:77:01:$1"; }
 # ProxyDHCP 允许列表：除 N1（f1）以外的全部实验 MAC
-ALLOW_IDS=(b1 b2 b3 b4 b5 b6 c1 c2 c3 c4 c5 c6 c7 d1 d2 e1 e2 f2 f3 91 92 a1 a2)
+ALLOW_IDS=(b1 b2 b3 b4 b5 b6 c1 c2 c3 c4 c5 c6 c7 d1 d2 e1 e2 f2 f3 91 92 a1 a2 14 15 16)
 SNPONLY_IDS=(c6 c7)
 SETPRIV=(setpriv --reuid "${PROBE_UID}" --regid "${PROBE_UID}" --clear-groups
          --inh-caps +net_bind_service --ambient-caps +net_bind_service)
@@ -249,6 +250,76 @@ sc_G1() {
   [ "${rogue}" = true ] && [ "${legit}" = false ] && check "标记伪造" 0 "lab-rogue 被标记为下发引导参数，lab-dhcp 未下发" || check "标记伪造" 1 "rogue=${rogue} legit=${legit}"
 }
 
+
+# ---------- Step 4：渲染结果真实装机 ----------
+# 实验室把 nexus-lvm 预设的镜像源改为 APT 缓存（虚拟机没有外网），其余条目保持预设。
+LAB_MIRROR='/mirror={"scheme":"http","host_port":"10.77.0.1:3142","directory":"/deb.debian.org/debian"}'
+acng_up() {
+  docker ps --format '{{.Names}}' | grep -qx lab-acng && return 0
+  docker rm -f lab-acng >/dev/null 2>&1 || true
+  docker run -d --name lab-acng -p "${LAB_IP}:3142:3142" xpxe-lab/acng >/dev/null
+  sleep 2
+}
+post_seen() { # <路径> <event_id>
+  jsel "$(svc_log serve)" '.event=="post" and .path==$m' "$1" | grep -F -- "$2" | grep -q .
+}
+wait_post() { # <路径> <event_id> <秒>
+  local deadline=$((SECONDS + $3))
+  while [ "${SECONDS}" -lt "${deadline}" ]; do
+    post_seen "$1" "$2" && return 0
+    post_seen /events/installer.failed "$2" && return 1
+    sleep 5
+  done
+  return 1
+}
+sc_I() { # <install-uefi|install-bios|install-static> <tap>
+  local id="$1" tap="$2" node fw mid
+  case "${id}" in
+    install-uefi) node=vm-uefi fw=ovmf mid=14 ;;
+    install-bios) node=vm-bios fw=seabios mid=15 ;;
+    install-static) node=vm-static fw=ovmf mid=16 ;;
+  esac
+  local mac hy token agent_token ev r
+  mac="$(mac_of "${mid}")" hy="$(mac_of "${mid}" | tr ':' '-')"
+  token="labboot${mid}" agent_token="labagent${mid}" ev="lab-labboot${mid}"
+  r="${WORK}/www/p/${token}"
+  rm -rf "${r}" "${WORK}/www/p/${agent_token}"; mkdir -p "${r}" "${WORK}/www/p/${agent_token}"
+  if [ -n "${WWW_OVERRIDE}" ]; then
+    cp -a "${WWW_OVERRIDE}/." "${r}/"
+  else
+    "${LAB_BIN}" render --preset nexus-lvm --node "${LAB_DIR}/nodes/${node}.json" --boot-base "${BASE}" \
+      --token "${token}" --agent-token "${agent_token}" --set "${LAB_MIRROR}" --out "${r}"
+  fi
+  mv "${r}/plan.json" "${WORK}/www/p/${agent_token}/plan.json"
+  ln -sf ../../d-i/linux "${r}/linux"; ln -sf ../../d-i/initrd.gz "${r}/initrd.gz"
+  cp "${r}/boot.ipxe" "${WORK}/www/node/${hy}.ipxe"
+  cp -a "${r}" "${D}/rendered"
+  # 系统盘 20G；数据盘 8G 低于下限；1G BMC 虚拟 U 盘（usb-storage，removable）必须被排除
+  local vmdir; vmdir="$("${LAB_DIR}/vm.sh" --name "${id}" --fw "${fw}" --nic virtio --mac "${mac}" --tap "${tap}" \
+    --boot disk-first --disks 20G,8G)"
+  if wait_post /events/installer.started "${ev}" "${BOOT_TIMEOUT:-300}"; then check "installer.started" 0 "收到 POST（${ev}）"
+  else check "installer.started" 1 "超时未收到"; fi
+  if wait_post /events/installer.finished "${ev}" "${INSTALL_TIMEOUT:-3600}"; then check "installer.finished" 0 "d-i 完成（选盘、分区、late_command 均成功）"
+  elif post_seen /events/installer.failed "${ev}"; then check "installer.finished" 1 "收到 installer.failed：$(jsel "$(svc_log serve)" '.path=="/events/installer.failed"' | tail -1)"
+  else check "installer.finished" 1 "超时"; fi
+  rm -f "${WORK}/www/node/${hy}.ipxe"
+  # 重启后从系统盘起来：静态场景 ping 节点规格地址；DHCP 场景看串口登录提示
+  local deadline=$((SECONDS + 600)) up=1
+  while [ "${SECONDS}" -lt "${deadline}" ]; do
+    if [ "${id}" = install-static ]; then ping -c1 -W2 10.77.0.16 >/dev/null 2>&1 && { up=0; break; }
+    else strings "${vmdir}/serial.log" | grep -q "lab-${id#install-} login:" && { up=0; break; }; fi
+    sleep 10
+  done
+  if [ "${id}" = install-static ]; then check "静态地址" "${up}" "重启后 10.77.0.16 可达（/etc/network/interfaces 为静态配置）"
+  else check "重启进系统" "${up}" "串口出现 lab-${id#install-} login:"; fi
+  local usb sys
+  usb="$(du -k "${vmdir}/vusb.raw" | cut -f1)" sys="$(du -k "${vmdir}/sys.qcow2" | cut -f1)"
+  [ "${usb}" = 0 ] && [ "${sys}" -gt 500000 ] && check "选盘" 0 "系统盘写入 ${sys} KiB，BMC 虚拟 U 盘未写入" \
+    || check "选盘" 1 "sys=${sys}KiB vusb=${usb}KiB"
+  vm_stop "${vmdir}"; cp "${vmdir}/serial.log" "${D}/serial-${mid}.log" 2>/dev/null || true
+  [ "${KEEP}" = 1 ] || rm -rf "${vmdir}"
+}
+
 run_one() { # <id> <tap>
   local id="$1" tap="$2"
   begin "${id}"
@@ -265,6 +336,7 @@ run_one() { # <id> <tap>
     H9a|H9b) sc_H9 "${id}" "${tap}" ;;
     G1) sc_G1 ;;
     R1|R2) source "${LAB_DIR}/lib/redfish.sh"; sc_R "${id}" "${tap}" ;;
+    install-uefi|install-bios|install-static) sc_I "${id}" "${tap}" ;;
     *) check "未知场景" 1 "${id}" ;;
   esac
   finish "${id}"
@@ -302,17 +374,19 @@ collect_fixtures() {
 }
 
 while [ $# -gt 0 ]; do
-  case "$1" in -j) JOBS="$2"; shift 2 ;; --keep) KEEP=1; shift ;; *) break ;; esac
+  case "$1" in -j) JOBS="$2"; shift 2 ;; --keep) KEEP=1; shift ;; --www) WWW_OVERRIDE="$2"; shift 2 ;; *) break ;; esac
 done
 [ $# -gt 0 ] || { echo "用法：lab/run.sh [-j N] [--keep] <场景…>|all|capture|services|stop-services" >&2; exit 2; }
 case "$1" in
   capture) collect_fixtures; exit 0 ;;
   services) services "${2:-proxy}"; exit 0 ;;
   stop-services) stop_services; exit 0 ;;
+  install-all) set -- install-uefi install-bios install-static ;;
   all) set -- B1 B2 B3 B4 B5 B6 U1 U2 U3 U4 U5 U6 W1 W2 N1 N2 H9a H9b ;;
 esac
 [ "${JOBS}" -le "${#TAPS[@]}" ] || die "-j 最多 ${#TAPS[@]}"
 mode="$(mode_for "$1")"
 for id in "$@"; do [ "$(mode_for "${id}")" = "${mode}" ] || die "场景 ${id} 与 $1 的服务模式不同，请分开运行"; done
 services "${mode}"
+case "$1" in install-*) acng_up ;; esac
 run_many "$@"

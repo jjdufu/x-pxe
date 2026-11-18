@@ -76,11 +76,20 @@ fn http_boot() -> Outcome {
         ensure_eq(&answer.vendor_class.as_str(), &"HTTPClient", "Opt60")?;
         let port = harness.running()?.boot_addr().port();
         let prefix = format!("http://127.0.0.1:{port}/fw/");
-        ensure(answer.file.starts_with(&prefix) && answer.file.ends_with("ipxe.efi"), &format!("URL {}", answer.file))?;
-        let path = answer.file.get(prefix.len().saturating_sub(4)..).unwrap_or_default();
+        ensure(
+            answer.file.starts_with(&prefix) && answer.file.ends_with("ipxe.efi"),
+            &format!("URL {}", answer.file),
+        )?;
+        let path = answer
+            .file
+            .get(prefix.len().saturating_sub(4)..)
+            .unwrap_or_default();
         let firmware = harness.boot("GET", path, b"").await?;
         ensure_eq(&firmware.status, &200, "固件 URL 可下载")?;
-        ensure(firmware.body == seed::asset_fixture("ipxe/snponly.efi")?, "字节一致")?;
+        ensure(
+            firmware.body == seed::asset_fixture("ipxe/snponly.efi")?,
+            "字节一致",
+        )?;
         audit_ok(&harness, &login).await
     })
 }

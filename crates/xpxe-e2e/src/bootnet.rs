@@ -127,7 +127,12 @@ impl Sim {
     /// # Errors
     ///
     /// 夹具缺失或应答无法解析时返回错误。
-    pub fn replay_as(&mut self, fixture: &str, mac: Option<MacAddr>, wall: Timestamp) -> Outcome<Option<Answer>> {
+    pub fn replay_as(
+        &mut self,
+        fixture: &str,
+        mac: Option<MacAddr>,
+        wall: Timestamp,
+    ) -> Outcome<Option<Answer>> {
         let mut payload = dhcp_fixture(fixture)?;
         if let Some(address) = mac
             && let Some(chaddr) = payload.get_mut(CHADDR..CHADDR.saturating_add(6))

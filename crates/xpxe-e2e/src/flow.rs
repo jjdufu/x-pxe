@@ -1,6 +1,5 @@
 //! 共享流程：LAN 装机全链路（DHCP 回放 → TFTP → iPXE → preseed → 安装器与 agent 事件 → `Ready`）。
 
-
 use serde_json::{Value, json};
 use xpxe_test_support::{ensure, ensure_eq};
 
@@ -15,7 +14,11 @@ use crate::seed::{self, Ids, asset_fixture};
 ///
 /// 运行时创建失败或用例失败时返回错误。
 pub fn run<F: Future<Output = Outcome>>(case: F) -> Outcome {
-    tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?.block_on(case)
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()?
+        .block_on(case)
 }
 
 /// 一个 LAN 用例。
@@ -43,9 +46,21 @@ pub struct LanCase<'case> {
 ///
 /// 链断开或请求失败时返回错误。
 pub async fn audit_ok(harness: &Harness, login: &Login) -> Outcome {
-    let report = harness.ok("GET", "/api/v1/audit/verify", login, None).await?;
-    ensure(report.get("first_broken").is_some_and(Value::is_null), &format!("审计链完整：{report}"))?;
-    ensure(report.get("checked").and_then(Value::as_u64).unwrap_or_default() > 0, "审计非空")?;
+    let report = harness
+        .ok("GET", "/api/v1/audit/verify", login, None)
+        .await?;
+    ensure(
+        report.get("first_broken").is_some_and(Value::is_null),
+        &format!("审计链完整：{report}"),
+    )?;
+    ensure(
+        report
+            .get("checked")
+            .and_then(Value::as_u64)
+            .unwrap_or_default()
+            > 0,
+        "审计非空",
+    )?;
     Ok(())
 }
 
@@ -55,7 +70,15 @@ pub async fn audit_ok(harness: &Harness, login: &Login) -> Outcome {
 ///
 /// 文件缺失时返回错误。
 pub fn session_token(harness: &Harness, session: &str, name: &str) -> Outcome<String> {
-    Ok(std::fs::read_to_string(harness.data_dir().join("cache/sessions").join(session).join(name))?.trim().to_owned())
+    Ok(std::fs::read_to_string(
+        harness
+            .data_dir()
+            .join("cache/sessions")
+            .join(session)
+            .join(name),
+    )?
+    .trim()
+    .to_owned())
 }
 
 /// 登记并 arm，返回（节点 ID，会话 ID）。
@@ -63,10 +86,26 @@ pub fn session_token(harness: &Harness, session: &str, name: &str) -> Outcome<St
 /// # Errors
 ///
 /// 请求失败时返回错误。
-pub async fn register_and_arm(harness: &Harness, login: &Login, ids: Ids, spec: &Value) -> Outcome<(i64, String)> {
+pub async fn register_and_arm(
+    harness: &Harness,
+    login: &Login,
+    ids: Ids,
+    spec: &Value,
+) -> Outcome<(i64, String)> {
     let node = seed::register(harness, login, spec, ids).await?;
-    let armed = harness.ok("POST", &format!("/api/v1/nodes/{node}/arm"), login, Some(&json!({}))).await?;
-    let session = armed.get("session_id").and_then(Value::as_str).unwrap_or_default().to_owned();
+    let armed = harness
+        .ok(
+            "POST",
+            &format!("/api/v1/nodes/{node}/arm"),
+            login,
+            Some(&json!({})),
+        )
+        .await?;
+    let session = armed
+        .get("session_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
     ensure(!session.is_empty(), "arm 返回会话 ID")?;
     harness.wait_state(login, node, "armed").await?;
     Ok((node, session))
@@ -78,17 +117,32 @@ pub async fn register_and_arm(harness: &Harness, login: &Login, ids: Ids, spec: 
 ///
 /// 任一断言失败时返回错误。
 pub async fn installer(harness: &Harness, boot_token: &str, session: &str) -> Outcome {
-    let script = harness.boot("GET", &format!("/p/{boot_token}/boot.ipxe"), b"").await?;
+    let script = harness
+        .boot("GET", &format!("/p/{boot_token}/boot.ipxe"), b"")
+        .await?;
     ensure_eq(&script.status, &200, "iPXE 脚本")?;
     ensure(script.text().starts_with("#!ipxe"), "脚本以 #!ipxe 开头")?;
-    let preseed = harness.boot("GET", &format!("/p/{boot_token}/preseed.cfg"), b"").await?;
+    let preseed = harness
+        .boot("GET", &format!("/p/{boot_token}/preseed.cfg"), b"")
+        .await?;
     ensure_eq(&preseed.status, &200, "preseed 首次")?;
-    let again = harness.boot("GET", &format!("/p/{boot_token}/preseed.cfg"), b"").await?;
+    let again = harness
+        .boot("GET", &format!("/p/{boot_token}/preseed.cfg"), b"")
+        .await?;
     ensure_eq(&again.status, &410, "preseed 第二次 410")?;
     for kind in ["installer.started", "installer.finished"] {
         let body = format!("event={kind} event_id={session}.installer");
-        let reply = harness.boot("POST", &format!("/p/{boot_token}/events/{kind}"), body.as_bytes()).await?;
-        ensure(reply.status < 300, &format!("{kind} → {}：{}", reply.status, reply.text()))?;
+        let reply = harness
+            .boot(
+                "POST",
+                &format!("/p/{boot_token}/events/{kind}"),
+                body.as_bytes(),
+            )
+            .await?;
+        ensure(
+            reply.status < 300,
+            &format!("{kind} → {}：{}", reply.status, reply.text()),
+        )?;
     }
     Ok(())
 }
@@ -98,16 +152,31 @@ pub async fn installer(harness: &Harness, boot_token: &str, session: &str) -> Ou
 /// # Errors
 ///
 /// 任一断言失败时返回错误。
-pub async fn agent(harness: &Harness, boot_token: &str, agent_token: &str, session: &str) -> Outcome {
-    let denied = harness.boot("GET", &format!("/p/{boot_token}/plan.json"), b"").await?;
+pub async fn agent(
+    harness: &Harness,
+    boot_token: &str,
+    agent_token: &str,
+    session: &str,
+) -> Outcome {
+    let denied = harness
+        .boot("GET", &format!("/p/{boot_token}/plan.json"), b"")
+        .await?;
     ensure_eq(&denied.status, &403, "Boot 令牌取计划被拒")?;
-    let plan = harness.boot("GET", &format!("/p/{agent_token}/plan.json"), b"").await?;
+    let plan = harness
+        .boot("GET", &format!("/p/{agent_token}/plan.json"), b"")
+        .await?;
     ensure_eq(&plan.status, &200, "agent 令牌取计划")?;
     let _plan_json = plan.json()?;
     for kind in ["agent.started", "agent.finished"] {
-        let body = json!({ "event_id": format!("{session}.{kind}"), "kind": kind, "payload": {} }).to_string();
-        let reply = harness.boot("POST", &format!("/p/{agent_token}/events"), body.as_bytes()).await?;
-        ensure(reply.status < 300, &format!("{kind} → {}：{}", reply.status, reply.text()))?;
+        let body = json!({ "event_id": format!("{session}.{kind}"), "kind": kind, "payload": {} })
+            .to_string();
+        let reply = harness
+            .boot("POST", &format!("/p/{agent_token}/events"), body.as_bytes())
+            .await?;
+        ensure(
+            reply.status < 300,
+            &format!("{kind} → {}：{}", reply.status, reply.text()),
+        )?;
     }
     Ok(())
 }
@@ -125,21 +194,40 @@ pub async fn lan_install(harness: &Harness, case: LanCase<'_>) -> Outcome {
     sim.sync().await?;
     let now = harness.app()?.now();
     let first = sim.replay(case.pxe_fixture, now)?.ok_or("固件阶段无应答")?;
-    ensure(first.file.starts_with("fw/") && first.file.ends_with(case.file_suffix), &format!("启动文件 {}", first.file))?;
+    ensure(
+        first.file.starts_with("fw/") && first.file.ends_with(case.file_suffix),
+        &format!("启动文件 {}", first.file),
+    )?;
     let bytes = sim.tftp(&first.file).await?;
-    ensure(*bytes == *asset_fixture(case.firmware_fixture)?, "TFTP 字节与上传一致")?;
+    ensure(
+        *bytes == *asset_fixture(case.firmware_fixture)?,
+        "TFTP 字节与上传一致",
+    )?;
     let mac = xpxe_domain::MacAddr::parse(case.mac)?;
-    let second = sim.replay_as(case.ipxe_fixture, Some(mac), now)?.ok_or("iPXE 阶段无应答")?;
+    let second = sim
+        .replay_as(case.ipxe_fixture, Some(mac), now)?
+        .ok_or("iPXE 阶段无应答")?;
     let boot_token = session_token(harness, &session, "boot_token")?;
-    ensure(second.file.ends_with(&format!("/p/{boot_token}/boot.ipxe")), &format!("会话 URL {}", second.file))?;
+    ensure(
+        second.file.ends_with(&format!("/p/{boot_token}/boot.ipxe")),
+        &format!("会话 URL {}", second.file),
+    )?;
     let agent_token = session_token(harness, &session, "agent_token")?;
     installer(harness, &boot_token, &session).await?;
     agent(harness, &boot_token, &agent_token, &session).await?;
     harness.wait_state(&login, node, "ready").await?;
     sim.sync().await?;
-    ensure(sim.replay(case.pxe_fixture, now)?.is_none(), "Ready 后 DISCOVER 无应答")?;
+    ensure(
+        sim.replay(case.pxe_fixture, now)?.is_none(),
+        "Ready 后 DISCOVER 无应答",
+    )?;
     let mac_path = case.mac.replace(':', "-");
-    let exit = harness.boot("GET", &format!("/boot/mac/{mac_path}"), b"").await?;
-    ensure(exit.text().contains("exit"), &format!("/boot/mac 返回 exit：{}", exit.text()))?;
+    let exit = harness
+        .boot("GET", &format!("/boot/mac/{mac_path}"), b"")
+        .await?;
+    ensure(
+        exit.text().contains("exit"),
+        &format!("/boot/mac 返回 exit：{}", exit.text()),
+    )?;
     audit_ok(harness, &login).await
 }

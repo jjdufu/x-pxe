@@ -12,7 +12,7 @@ IEQ_AGENT_TOKEN=labagente2
 IEQ_MOTD_EXTRA=('PROCESSOR_NAME=${PROCESSOR_NAME:-$(uname -m)}' '    [[ "${DISK_USAGE}" =~ ^[0-9]+$ ]] || DISK_USAGE=0')
 # 比较的路径（相对 /）
 IEQ_PATHS=(etc/ssh/sshd_config.d etc/sudoers.d etc/sysctl.d etc/security/limits.d etc/profile.d
-           etc/update-motd.d/00-custom-header etc/default/locale etc/locale.gen root/.vimrc home/jwczjzl/.vimrc)
+           etc/update-motd.d/00-custom-header etc/default/locale etc/locale.conf etc/locale.gen root/.vimrc home/jwczjzl/.vimrc)
 
 ieq_image() {
   [ -f "${IEQ_IMAGE}" ] && return 0
@@ -146,7 +146,8 @@ ieq_compare() { # → 0 表示除允许差异外一致
     grep -vxF -- "${line}" "${motd}" > "${motd}.tmp" || true
     cat "${motd}.tmp" > "${motd}"; rm -f "${motd}.tmp"
   done
-  diff -r "${a}" "${b}" > "${IEQ}/diff.txt" 2>&1
+  # Debian 13 的 /etc/default/locale 是指向 ../locale.conf 的符号链接：两者都收集，比较时不跟随链接
+  diff -r --no-dereference "${a}" "${b}" > "${IEQ}/diff.txt" 2>&1
 }
 
 rc_of() { "$@" > /dev/null 2>&1 && echo 0 || echo 1; }

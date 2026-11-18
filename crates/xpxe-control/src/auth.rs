@@ -265,7 +265,11 @@ fn authenticate(parts: &Parts, app: &App) -> Outcome<Principal> {
     if principal.user.disabled {
         return Err(unauthenticated());
     }
-    if principal.user.must_change_password && !PASSWORD_CHANGE_PATHS.contains(&parts.uri.path()) {
+    let path = parts
+        .extensions
+        .get::<axum::extract::OriginalUri>()
+        .map_or_else(|| parts.uri.path(), |original| original.0.path());
+    if principal.user.must_change_password && !PASSWORD_CHANGE_PATHS.contains(&path) {
         return Err(Failure::forbidden(
             "PASSWORD_CHANGE_REQUIRED",
             "首次登录必须修改密码",

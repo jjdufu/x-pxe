@@ -1436,6 +1436,17 @@ dependencies = [
 name = "xpxe-e2e"
 version = "0.1.0"
 dependencies = [
+ "rustls",
+ "serde_json",
+ "tokio",
+ "tokio-rustls",
+ "xpxe-assets",
+ "xpxe-bootnet",
+ "xpxe-control",
+ "xpxe-dhcp",
+ "xpxe-domain",
+ "xpxe-redfish",
+ "xpxe-store",
  "xpxe-test-support",
 ]
 

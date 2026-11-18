@@ -195,7 +195,7 @@ impl App {
     }
 
     /// 唤醒发件箱与定时器。
-    pub(crate) fn wake(&self) {
+    pub fn wake(&self) {
         self.effects_wake.notify_one();
         self.timers_wake.notify_one();
     }

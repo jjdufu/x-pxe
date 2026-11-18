@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# 场景编排：lab/run.sh [-j N] [--keep] [--www <目录>] <场景…>|all|capture|services|stop-services
+# 场景编排：lab/run.sh [-j N] [--keep] [--www <目录>] [--bootnet <xpxe-bootnet>] <场景…>|all|capture|services|stop-services
+# --bootnet：由正式 xpxe-bootnet（+ xpxe-lab control-stub 充当控制面）代替 proxydhcp/tftp 探针应答（Step 8）
+# Step 8 场景（需 --bootnet）：rogue-proxy（先 lab/dhcp.sh start rogue）| redfish-only-ports
 # Step 4 装机场景：install-uefi | install-bios | install-static（完整跑完 d-i 并从系统盘重启）
 # Step 5 初始化等价性：init-equivalence [--plan <plan.json>] [--legacy <脚本>]（lab/lib/init-equivalence.sh）
 # 每个场景输出 PASS/FAIL、耗时与日志目录（lab/out/<场景>/）。
 source "$(dirname "$0")/lib/common.sh"
 source "$(dirname "$0")/lib/init-equivalence.sh"
-JOBS=1 KEEP=0 WWW_OVERRIDE=""
+JOBS=1 KEEP=0 WWW_OVERRIDE="" BOOTNET=""
+MODE_FILE="${WORK}/bootnet-mode"
+TOKEN_FILE="${WORK}/bootnet-token"
 BASE="http://${LAB_IP}:8080"
 mac_of() { echo "52:54:00:77:01:$1"; }
 # ProxyDHCP 允许列表：除 N1（f1）以外的全部实验 MAC
@@ -34,6 +38,7 @@ svc_start() { # <名字> <root|user> <命令…>
 services() { # proxy|noproxy
   ip link show "${BR}" >/dev/null 2>&1 || die "先运行 lab/net.sh up"
   svc_start serve user "${LAB_BIN}" serve --dir "${WORK}/www" --listen "${LAB_IP}:8080"
+  if [ -n "${BOOTNET}" ]; then bootnet_services "$1"; return; fi
   local T="${WORK}/tftp"
   svc_start tftp root "${SETPRIV[@]}" "${LAB_BIN}" tftp --listen "${LAB_IP}:69" \
     --root-file "ipxe.efi=${T}/ipxe.efi" --root-file "snponly.efi=${T}/snponly.efi" \
@@ -49,7 +54,43 @@ services() { # proxy|noproxy
   fi
 }
 
-stop_services() { for s in proxydhcp tftp serve sushy apt-proxy; do svc_stop "$s"; done; }
+# 正式 bootnet：control-stub 提供内部 API，bootnet 以 UID 10001 + 仅 NET_BIND_SERVICE 运行
+bootnet_services() { # proxy|noproxy
+  local T="${WORK}/tftp" args=() i mode=proxy_dhcp
+  [ "$1" = proxy ] || mode=external_dhcp
+  for s in proxydhcp tftp bootnet control; do svc_stop "$s"; done
+  sleep 1
+  echo "${mode}" > "${MODE_FILE}"
+  [ -s "${TOKEN_FILE}" ] || head -c 24 /dev/urandom | base64 | tr -d '/+=\n' > "${TOKEN_FILE}"
+  chmod 0644 "${TOKEN_FILE}"
+  for i in "${ALLOW_IDS[@]}"; do
+    args+=(--allow-mac "$(mac_of "$i")")
+    # control-stub 的 boot_token = lab-<MAC 去冒号>，iPXE 取 <BASE>/p/<token>/boot.ipxe
+    mkdir -p "${WORK}/www/p/lab-$(mac_of "$i" | tr -d :)"
+    cp "${WORK}/www/boot.ipxe" "${WORK}/www/p/lab-$(mac_of "$i" | tr -d :)/boot.ipxe"
+  done
+  for i in "${SNPONLY_IDS[@]}"; do args+=(--efi-file-for "$(mac_of "$i")=snponly.efi"); done
+  svc_start control user "${LAB_BIN}" control-stub --listen 127.0.0.1:8081 --token-file "${TOKEN_FILE}" \
+    --iface "${BR}" --boot-base "${BASE}" --mode-file "${MODE_FILE}" \
+    --undionly "${T}/undionly.kpxe" --ipxe-efi "${T}/ipxe.efi" --snponly "${T}/snponly.efi" "${args[@]}"
+  sudo install -m 0755 "${BOOTNET}" "${LAB_BIN_DIR}/xpxe-bootnet"
+  svc_start bootnet root "${SETPRIV[@]}" env XPXE_CONTROL_URL=http://127.0.0.1:8081 \
+    XPXE_BOOTNET_TOKEN_FILE="${TOKEN_FILE}" XPXE_BOOTNET_ALLOWED_IFACES="${BR}" "${LAB_BIN_DIR}/xpxe-bootnet" run
+  wait_heartbeat "${mode}" 60 || die "bootnet 60 秒内未报告 ${mode} 心跳（见 $(svc_log bootnet)）"
+  log "bootnet 就绪：$(last_heartbeat | jq -c '{mode,health,listening,detail}')"
+}
+last_heartbeat() { jq -R -c 'fromjson? | select(.event=="heartbeat") | .heartbeat' "$(svc_log control)" | tail -1; }
+wait_heartbeat() { # <mode> <秒> [health]
+  local deadline=$((SECONDS + $2)) hb
+  while [ "${SECONDS}" -lt "${deadline}" ]; do
+    hb="$(last_heartbeat)"
+    if [ -n "${hb}" ] && [ "$(jq -r .mode <<< "${hb}")" = "$1" ] && { [ -z "${3:-}" ] || [ "$(jq -r .health <<< "${hb}")" = "$3" ]; }; then return 0; fi
+    sleep 2
+  done
+  return 1
+}
+
+stop_services() { for s in proxydhcp tftp bootnet control serve sushy apt-proxy; do svc_stop "$s"; done; }
 
 # 等待 d-i 的 early_command 事件（证明进入 d-i 且 preseed 被取走并执行）
 wait_early() { # <mac> <秒>
@@ -109,8 +150,23 @@ check_ipxe_dhcp() { # 首个 iPXE DISCOVER 同时带 Opt77=iPXE 与 Opt175（H4�
 }
 
 jsel() { jq -R -c --arg m "${3:-}" "fromjson? | select($2)" "$1"; }
-proxy_replied() { jsel "$(svc_log proxydhcp)" '.event=="reply" and .request.mac==$m' "$1" | wc -l; }
-tftp_done() { jsel "$(svc_log tftp)" '.fields.path==$m and .fields.completed==true' "$1" | wc -l; }
+# 观测断言：探针模式读 proxydhcp/tftp 日志；--bootnet 模式读 control-stub 收到的观测
+proxy_replied() {
+  if [ -n "${BOOTNET}" ]; then jsel "$(svc_log control)" '.event=="observation" and .kind=="dhcp_reply" and .request.mac==$m' "$1" | wc -l
+  else jsel "$(svc_log proxydhcp)" '.event=="reply" and .request.mac==$m' "$1" | wc -l; fi
+}
+tftp_done() {
+  if [ -n "${BOOTNET}" ]; then jsel "$(svc_log control)" '.event=="observation" and .kind=="tftp" and .stage=="completed" and (.file|endswith($m))' "$1" | wc -l
+  else jsel "$(svc_log tftp)" '.fields.path==$m and .fields.completed==true' "$1" | wc -l; fi
+}
+replied_file() { # <子串>：是否有下发该文件的应答
+  if [ -n "${BOOTNET}" ]; then jsel "$(svc_log control)" '.event=="observation" and .kind=="dhcp_reply" and (.file|contains($m))' "$1" | grep -q .
+  else jsel "$(svc_log proxydhcp)" '.event=="reply" and (.target|contains($m))' "$1" | grep -q .; fi
+}
+ignored_unarmed() { # <mac>
+  if [ -n "${BOOTNET}" ]; then jsel "$(svc_log control)" '.event=="observation" and .kind=="dhcp_ignore" and .reason=="not_armed" and .request.mac==$m' "$1" | grep -q .
+  else jsel "$(svc_log proxydhcp)" '.event=="ignore" and .reason=="mac-not-allowed" and .request.mac==$m' "$1" | grep -q .; fi
+}
 
 sc_B() { # B1–B5
   local id="$1" tap="$2" nic mid
@@ -141,7 +197,8 @@ sc_U6() {
     boot_to_di U6 "${tap}" ovmf "${pair%%:*}" "${pair##*:}"
   done
   fixtures "ovmf-snponly" "$(mac_of c6)" "$(mac_of c7)"
-  jsel "$(svc_log proxydhcp)" '.event=="reply" and (.target|contains("snponly.efi"))' | grep -q . && check "snponly" 0 "ProxyDHCP 按 MAC 下发 snponly.efi" || check "snponly" 1 "未下发 snponly.efi"
+  sleep 3 # bootnet 观测每 2 秒批量上报
+  replied_file snponly.efi && check "snponly" 0 "ProxyDHCP 按 MAC 下发 snponly.efi" || check "snponly" 1 "未下发 snponly.efi"
   local n; n="$(tftp_done snponly.efi)"
   [ "${n}" -ge 2 ] && check "snponly-tftp" 0 "snponly.efi 完整传输 ${n} 次" || check "snponly-tftp" 1 "snponly.efi 完整传输 ${n} 次"
 }
@@ -164,7 +221,8 @@ sc_X() {
   "${LAB_BIN}" capture --pcap "${D}/capture.pcap" --out "${D}/all" --label all > "${D}/all-capture.log"
   local n from_box
   n="$(jq -r 'select(.event=="fixture")|.name' "${D}/all-capture.log" | wc -l)"
-  from_box="$(grep -l '"src": "10.77.0.1:' "${D}"/all/*.json 2>/dev/null | wc -l || true)"
+  # 只统计服务端应答（源端口 67/4011）；bootnet 的现网探测 DISCOVER 源端口为 68，不算
+  from_box="$(grep -lE '"src": "10\.77\.0\.1:(67|4011)"' "${D}"/all/*.json 2>/dev/null | wc -l || true)"
   [ "${from_box}" = 0 ] && check "无DHCP外发" 0 "抓包 ${n} 个 DHCP 报文中 box(10.77.0.1) 发出 0 个" || check "无DHCP外发" 1 "box 发出 ${from_box} 个 DHCP 报文"
 }
 
@@ -175,7 +233,7 @@ sc_N1() {
   vm_stop "${vmdir}"; cp "${vmdir}/serial.log" "${D}/serial-f1.log"; [ "${KEEP}" = 1 ] || rm -rf "${vmdir}"
   fixtures ovmf-not-allowed "${mac}"
   [ "$(proxy_replied "${mac}")" = 0 ] && check "不应答" 0 "ProxyDHCP 对 ${mac} 应答 0 次" || check "不应答" 1 "ProxyDHCP 应答了 ${mac}"
-  jsel "$(svc_log proxydhcp)" '.event=="ignore" and .reason=="mac-not-allowed" and .request.mac==$m' "${mac}" | grep -q . && check "记录忽略" 0 "日志有 mac-not-allowed" || check "记录忽略" 1 "无忽略记录"
+  ignored_unarmed "${mac}" && check "记录忽略" 0 "日志有未武装忽略记录" || check "记录忽略" 1 "无忽略记录"
   local e16 next
   e16="$(strings "${D}/serial-f1.log" | grep -c 'PXE-E16: No valid offer received' || true)"
   next="$(strings "${D}/serial-f1.log" | grep -A3 'failed to load Boot' | grep -c -E 'Start PXE over IPv6|BdsDxe: loading|Start HTTP' || true)"
@@ -210,8 +268,9 @@ sc_B6() {
   "${LAB_DIR}/net.sh" probe-ns
   sudo ip netns exec ns-probe "${LAB_BIN}" pxe-client --iface vp-probe --legacy --mac "${mac}" --wait 3 \
     --save "${D}/fixtures" --label constructed-bios > "${D}/pxe-client.log"
-  if jq -e 'select(.phase=="offer" and .reply.proxy and .reply.file=="undionly.kpxe" and .reply.siaddr=="10.77.0.1")' "${D}/pxe-client.log" > /dev/null; then
-    check "B6①" 0 "构造的 BIOS 非 iPXE DISCOVER 得到 file=undionly.kpxe、siaddr=10.77.0.1"
+  sudo chown -R "$(id -u):$(id -g)" "${D}/fixtures" # root 写入的夹具，避免下次 begin 清理失败
+  if jq -e 'select(.phase=="offer" and .reply.proxy and (.reply.file=="undionly.kpxe" or (.reply.file|test("^fw/[0-9a-f]+/undionly\\.kpxe$"))) and .reply.siaddr=="10.77.0.1")' "${D}/pxe-client.log" > /dev/null; then
+    check "B6①" 0 "构造的 BIOS 非 iPXE DISCOVER 得到 file=[fw/<摘要>/]undionly.kpxe、siaddr=10.77.0.1"
   else check "B6①" 1 "应答不符：$(cat "${D}/pxe-client.log")"; fi
   boot_to_di B6 "${tap}" seabios virtio b6 --kernel /usr/lib/ipxe/ipxe.lkrn --initrd "${LAB_DIR}/ipxe/legacy-sim.ipxe"
   [ "$(tftp_done undionly.kpxe)" -ge 1 ] && check "H15" 0 "ipxe.lkrn 经 TFTP 加载 undionly.kpxe 并运行到 d-i" || check "H15" 1 "undionly.kpxe 未完整传输"
@@ -337,6 +396,37 @@ sc_I() { # <install-uefi|install-bios|install-static> <tap>
   [ "${KEEP}" = 1 ] || rm -rf "${vmdir}"
 }
 
+# 冒充 ProxyDHCP 的 lab-rogue（10.77.0.3）在线：bootnet 必须进入 conflict 并暂停应答
+sc_rogue() {
+  [ -n "${BOOTNET}" ] || { check "前提" 1 "需要 --bootnet"; return; }
+  docker inspect -f '{{.State.Running}}' lab-rogue 2>/dev/null | grep -q true || { check "前提" 1 "先运行 lab/dhcp.sh start rogue"; return; }
+  if wait_heartbeat proxy_dhcp 60 conflict; then
+    local hb; hb="$(last_heartbeat)"
+    check "冲突" 0 "health=conflict detail=$(jq -r .detail <<< "${hb}")"
+    jq -e '.probe.conflicts | index("10.77.0.3")' <<< "${hb}" > /dev/null && check "冲突地址" 0 "心跳报告冲突服务器 10.77.0.3" || check "冲突地址" 1 "心跳未列出 10.77.0.3：$(jq -c .probe <<< "${hb}")"
+  else check "冲突" 1 "60 秒内未见 conflict 心跳：$(last_heartbeat)"; fi
+  local mac before after; mac="$(mac_of b1)"
+  before="$(proxy_replied "${mac}")"
+  sudo "${LAB_BIN}" pxe-client --legacy --iface "${BR}" --mac "${mac}" > "${D}/pxe-client.log" 2>&1 || true
+  sleep 4; after="$(proxy_replied "${mac}")"
+  [ "${before}" = "${after}" ] && check "暂停应答" 0 "冲突期间对已武装 ${mac} 应答 0 次" || check "暂停应答" 1 "冲突期间仍应答 ${mac}"
+}
+
+# 切换到 redfish_only 后 67/69/4011 全部释放，切回后恢复
+sc_redfish_ports() {
+  [ -n "${BOOTNET}" ] || { check "前提" 1 "需要 --bootnet"; return; }
+  ports() { sudo ss -H -ulnp | grep -E ':(67|69|4011)\b' | grep -c xpxe-bootnet || true; }
+  [ "$(ports)" -ge 3 ] && check "初始监听" 0 "proxy_dhcp：$(ports) 个引导端口" || check "初始监听" 1 "proxy_dhcp 只有 $(ports) 个端口"
+  echo redfish_only > "${MODE_FILE}"
+  if wait_heartbeat redfish_only 40; then
+    sleep 1
+    [ "$(ports)" = 0 ] && check "释放" 0 "redfish_only：ss -ulnp 中无 :67 :69 :4011" || check "释放" 1 "仍有 $(ports) 个端口：$(sudo ss -H -ulnp | grep xpxe-bootnet)"
+  else check "释放" 1 "40 秒内未切换到 redfish_only"; fi
+  jsel "$(svc_log control)" '.event=="observation" and .kind=="mode_changed" and .to=="redfish_only"' | grep -q . && check "切换观测" 0 "mode_changed → redfish_only 已上报" || check "切换观测" 1 "无 mode_changed 观测"
+  echo proxy_dhcp > "${MODE_FILE}"
+  wait_heartbeat proxy_dhcp 40 && [ "$(ports)" -ge 3 ] && check "恢复" 0 "切回 proxy_dhcp 后端口恢复" || check "恢复" 1 "切回后端口 $(ports) 个"
+}
+
 run_one() { # <id> <tap>
   local id="$1" tap="$2"
   begin "${id}"
@@ -354,6 +444,8 @@ run_one() { # <id> <tap>
     G1) sc_G1 ;;
     R1|R2) source "${LAB_DIR}/lib/redfish.sh"; sc_R "${id}" "${tap}" ;;
     install-uefi|install-bios|install-static) sc_I "${id}" "${tap}" ;;
+    rogue-proxy) sc_rogue ;;
+    redfish-only-ports) sc_redfish_ports ;;
     *) check "未知场景" 1 "${id}" ;;
   esac
   finish "${id}"
@@ -391,7 +483,7 @@ collect_fixtures() {
 }
 
 while [ $# -gt 0 ]; do
-  case "$1" in -j) JOBS="$2"; shift 2 ;; --keep) KEEP=1; shift ;; --www) WWW_OVERRIDE="$2"; shift 2 ;; *) break ;; esac
+  case "$1" in -j) JOBS="$2"; shift 2 ;; --bootnet) BOOTNET="$(realpath "$2")"; shift 2 ;; --keep) KEEP=1; shift ;; --www) WWW_OVERRIDE="$2"; shift 2 ;; *) break ;; esac
 done
 [ $# -gt 0 ] || { echo "用法：lab/run.sh [-j N] [--keep] <场景…>|all|capture|services|stop-services" >&2; exit 2; }
 case "$1" in

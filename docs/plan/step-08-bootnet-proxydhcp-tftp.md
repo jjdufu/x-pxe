@@ -115,3 +115,28 @@ scripts/gate.sh
 - `rogue-proxy` 场景 bootnet 暂停应答，心跳中报告冲突服务器地址。
 - 以 UID 10001 + 仅 `NET_BIND_SERVICE` 在内核 ≥ 5.7 的宿主机上正常运行。
 - `scripts/gate.sh` 全绿。
+
+## 10. 实现偏差（落地记录）
+
+| 计划 | 实现 | 理由 |
+| :--- | :--- | :--- |
+| `IP_PKTINFO` 取收包网卡与目的地址 | 每个 socket `SO_BINDTODEVICE(iface)`；网卡 IPv4 由“设备绑定 socket `connect(255.255.255.255)` 后读取内核选出的源地址”得到 | 只在一块网卡上服务，绑定后收发都限定在该网卡，不必逐包解析辅助数据；网卡需有 scope global 的 IPv4 |
+| 快照字段 `mode` + `iface` | `network`：`{"mode":"proxy_dhcp","iface":"br-lab"}` / `external_dhcp` / `redfish_only` | 无网卡的 `redfish_only` 不需要空字段；`iface` 白名单校验在类型上完成 |
+| 固件三元组 | 另加按节点的 `uefi_firmware` 覆盖（U6：特定网卡用 `snponly.efi`） | Step 2 U6 场景需要按 MAC 选择 |
+| 心跳“socket 状态” | `listening: [67, 4011, 69]` 端口列表 | 直接对应 `redfish-only-ports` 验收 |
+| “携带 `siaddr`/`file`/66/67/43” 即 `pxe_capable` | 只有 `siaddr` 不算 | dnsmasq 等普通 DHCP 也写 `siaddr`，会误报冲突；仍要求 `file`/66/67/43 之一 |
+| 任何 `Ignore` 都写观测 | 非 PXE 报文（无 `PXEClient`/`HTTPClient`）只计数不写观测 | 避免网段上所有普通 DHCP 流量淹没观测表；未登记 MAC 的 PXE 请求照常记录 `not_armed` |
+| 探测使用随机本地管理 MAC | 固定前缀 `02:78:70:78:65`（“xpxe”）+ 随机末字节 | 便于在抓包与其他 DHCP 服务器日志中识别，bootnet 自己也据此忽略探测报文 |
+| TFTP 并发超限 | 返回错误码 0（“server busy”） | RFC 1350 无专门错误码 |
+| bootnet 启动状态 | 未联系上控制面前按 `redfish_only` 处理（不监听任何端口） | 失联关闭：没有指令就不打开引导端口 |
+| 4011 夹具回放 | Step 2 抓包中没有 4011 REQUEST 夹具（iPXE 在实验室均直接接受 67 端口 OFFER），4011 由单元测试构造报文覆盖 | — |
+| 控制面内部 API | Step 8 只实现 bootnet 侧客户端；实验室用 `xpxe-lab control-stub` 充当控制面，正式服务端在 Step 10（`XPXE_INTERNAL_LISTEN`）实现 | 控制面在 Step 10 落地 |
+| 固件文件名 `undionly.kpxe` 等 | 应答 `file` 为内容寻址路径 `fw/<摘要前缀>/undionly.kpxe`（TFTP 按该路径提供） | 资产更新后客户端不会拿到旧缓存；实验室 B6 断言同时接受两种形式 |
+
+### 实验室验收记录（2026-11-18 Asia/Shanghai，`--bootnet target/debug/xpxe-bootnet`）
+
+- `lab/dhcp.sh start coexist`：B1–B5、U1–U6、W1、W2、N1 PASS（15:44–15:54）；B6 PASS（17:18，修正断言与夹具属主后复跑）。
+- `lab/dhcp.sh start existing`：X1、X2 PASS（17:20，external_dhcp 模式，box 未发出任何 DHCP 应答）。
+- `lab/dhcp.sh start rogue`：rogue-proxy PASS（health=conflict，心跳列出 10.77.0.3，冲突期间对已武装 MAC 应答 0 次）。
+- redfish-only-ports PASS（切到 redfish_only 后 `ss -ulnp` 无 :67/:69/:4011，上报 mode_changed，切回后端口恢复）。
+- bootnet 以 UID 10001 + 仅 `NET_BIND_SERVICE`（setpriv ambient caps）运行；`scripts/gate.sh` 全绿，`cargo tree -d` 为空。

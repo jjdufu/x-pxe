@@ -20,6 +20,7 @@
 mod assets_smoke;
 mod capture;
 mod common;
+mod control_stub;
 mod deps_check;
 mod iso;
 mod logging;
@@ -37,7 +38,7 @@ use std::process::ExitCode;
 use common::{Args, LabError, LabResult};
 
 /// 用法说明。
-const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|serve|capture|dhcp-scan|pxe-client|iso|render|render-plan|store-smoke|assets-smoke|assets-align> [参数…]";
+const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|control-stub|serve|capture|dhcp-scan|pxe-client|iso|render|render-plan|store-smoke|assets-smoke|assets-align> [参数…]";
 
 /// 运行依赖预检并打印报告。
 ///
@@ -63,6 +64,7 @@ fn main() -> ExitCode {
         "deps-check" => deps(),
         "proxydhcp" => proxydhcp::run(&args),
         "tftp" => tftp::run(&args),
+        "control-stub" => control_stub::run(&args),
         "serve" => serve::run(&args),
         "capture" => capture::run(&args),
         "dhcp-scan" => scan::run_scan(&args),

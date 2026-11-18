@@ -254,6 +254,38 @@ impl<'store> Tokens<'store> {
         })
     }
 
+    /// 令牌属于已关闭或已过期的会话时返回该会话（用于把迟到的回调报告为过期会话）。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn stale_session(self, token: &str, now: Timestamp) -> StoreResult<Option<SessionId>> {
+        let hash = sha256_hex(token.as_bytes());
+        self.store.read(|conn| {
+            let row = query_opt(
+                conn,
+                "SELECT id, expires_at, closed_at FROM install_sessions
+                 WHERE boot_token_hash = ?1 OR agent_token_hash = ?1",
+                [&hash],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        parse_ts(&row.get::<_, String>(1)?)?,
+                        row.get::<_, Option<String>>(2)?.is_some(),
+                    ))
+                },
+            )?;
+            match row {
+                Some((id, expires_at, closed)) if closed || expired(expires_at, now) => {
+                    SessionId::parse(&id)
+                        .map(Some)
+                        .map_err(|error| StoreError::Corrupt(error.to_string()))
+                }
+                Some(_) | None => Ok(None),
+            }
+        })
+    }
+
     /// 解析令牌并检查其种类能否访问 `resource`。
     ///
     /// # Errors

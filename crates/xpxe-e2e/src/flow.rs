@@ -6,6 +6,7 @@ use xpxe_test_support::{ensure, ensure_eq};
 use crate::Outcome;
 use crate::bootnet::Sim;
 use crate::harness::{Harness, Login};
+use crate::http::Reply;
 use crate::seed::{self, Ids, asset_fixture};
 
 /// 在多线程运行时上执行异步用例。
@@ -109,6 +110,45 @@ pub async fn register_and_arm(
     ensure(!session.is_empty(), "arm 返回会话 ID")?;
     harness.wait_state(login, node, "armed").await?;
     Ok((node, session))
+}
+
+/// 上报一个安装器事件（`key=value` 文本，与 preseed 模板一致）。
+///
+/// # Errors
+///
+/// 连接失败时返回错误。
+pub async fn installer_event(
+    harness: &Harness,
+    boot_token: &str,
+    session: &str,
+    kind: &str,
+) -> Outcome<Reply> {
+    let body = format!("event={kind} event_id={session}.installer");
+    harness
+        .boot(
+            "POST",
+            &format!("/p/{boot_token}/events/{kind}"),
+            body.as_bytes(),
+        )
+        .await
+}
+
+/// 上报一个 agent 事件（JSON）。
+///
+/// # Errors
+///
+/// 连接失败时返回错误。
+pub async fn agent_event(
+    harness: &Harness,
+    agent_token: &str,
+    session: &str,
+    kind: &str,
+) -> Outcome<Reply> {
+    let body =
+        json!({ "event_id": format!("{session}.{kind}"), "kind": kind, "payload": {} }).to_string();
+    harness
+        .boot("POST", &format!("/p/{agent_token}/events"), body.as_bytes())
+        .await
 }
 
 /// 安装器阶段：取脚本与 preseed（一次性），上报 `installer.started/finished`。

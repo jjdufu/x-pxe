@@ -158,6 +158,36 @@ fn consume_once_is_atomic() -> TestResult {
     Ok(())
 }
 
+/// 已关闭会话的令牌可识别为过期会话；活动会话与未知令牌不算。
+///
+/// # Errors
+///
+/// 断言失败时返回错误。
+#[test]
+fn stale_session_identifies_closed_tokens() -> TestResult {
+    let dir = TempDataDir::new()?;
+    let store = open(dir.path())?;
+    let (_node, issued) = armed(&store)?;
+    let tokens = store.tokens();
+    ensure_eq(
+        &tokens.stale_session(issued.boot.as_str(), at(1))?,
+        &None,
+        "活动会话",
+    )?;
+    ensure_eq(
+        &tokens.stale_session("unknown-token", at(1))?,
+        &None,
+        "未知令牌",
+    )?;
+    let _closed = tokens.close(&issued.session, "timeout", at(2))?;
+    ensure_eq(
+        &tokens.stale_session(issued.agent.as_str(), at(3))?,
+        &Some(issued.session.clone()),
+        "关闭后识别",
+    )?;
+    Ok(())
+}
+
 /// 会话固定后修改配置不影响会话所固定的版本内容。
 ///
 /// # Errors

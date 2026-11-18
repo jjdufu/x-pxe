@@ -221,6 +221,12 @@ impl Harness {
         self.mirror
     }
 
+    /// 临时目录中的文件（主密钥 `master.key` 等）。
+    #[must_use]
+    pub fn file(&self, name: &str) -> PathBuf {
+        self.dir.path().join(name)
+    }
+
     /// bootnet 令牌文件。
     #[must_use]
     pub fn token_file(&self) -> PathBuf {

@@ -182,11 +182,18 @@ fn record_progress(
 ///
 /// 令牌被拒（403）、种类不在白名单（400）或转换被拒（409）时返回错误。
 fn handle(app: &App, token: &str, ip: String, reported: &Reported) -> Outcome<Value> {
-    let (session, kind) = app
-        .store
-        .tokens()
-        .resolve(token, app.now())?
-        .ok_or_else(|| Failure::forbidden("TOKEN_REJECTED", "令牌无效、已过期或会话已关闭"))?;
+    let Some((session, kind)) = app.store.tokens().resolve(token, app.now())? else {
+        let stale = app.store.tokens().stale_session(token, app.now())?;
+        return Err(stale.map_or_else(
+            || Failure::forbidden("TOKEN_REJECTED", "令牌无效"),
+            |old| {
+                Failure::conflict(
+                    "STALE_SESSION",
+                    format!("会话 {} 已结束，迟到的回调被拒绝", old.as_str()),
+                )
+            },
+        ));
+    };
     let (needed, transition, source) = classify(&reported.kind)?;
     if kind != needed {
         return Err(Failure::forbidden("TOKEN_KIND", "该事件需要另一种令牌"));

@@ -404,7 +404,7 @@ fn hooks_section(request: &RenderRequest) -> String {
         )),
         url = sh_quote(&format!(
             "{}/events/installer.started",
-            request.boot_base().as_str()
+            request.session_base()
         ))
     );
     let partman = format!(

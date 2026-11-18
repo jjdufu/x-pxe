@@ -7,7 +7,10 @@ use super::{MIGRATIONS, current_version, run, run_until};
 use crate::integrity_messages;
 
 /// 每个迁移版本之后可插入的样例数据（下标 = 已执行迁移数 - 1）。
-const SAMPLES: &[&str] = &[include_str!("samples/after_0001.sql")];
+const SAMPLES: &[&str] = &[
+    include_str!("samples/after_0001.sql"),
+    include_str!("samples/after_0002.sql"),
+];
 
 /// 空库迁移到最新。
 ///

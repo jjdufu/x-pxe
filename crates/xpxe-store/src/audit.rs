@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use rusqlite::{Connection, Row};
+use rusqlite::{Connection, Row, Transaction};
 use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 use xpxe_domain::Timestamp;
@@ -73,41 +73,7 @@ impl<'store> Audit<'store> {
     ///
     /// 写入失败时返回错误。
     pub fn append(self, record: &AuditRecord, now: Timestamp) -> StoreResult<i64> {
-        let at = ts(now)?;
-        self.store.write(|tx| {
-            let prev = query_opt(
-                tx,
-                "SELECT id, hash FROM audit_log ORDER BY id DESC LIMIT 1",
-                [],
-                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
-            )?;
-            let (id, prev_hash) = match prev {
-                Some((last, hash)) => (
-                    last.checked_add(1)
-                        .ok_or_else(|| StoreError::Corrupt("审计 ID 溢出".to_owned()))?,
-                    hash,
-                ),
-                None => (1, GENESIS.to_owned()),
-            };
-            let hash = chain_hash(&prev_hash, id, &at, record)?;
-            exec(tx,
-                "INSERT INTO audit_log (id, at, actor, ip, action, target, outcome, detail, prev_hash, hash)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                rusqlite::params![
-                    id,
-                    at,
-                    record.actor,
-                    record.ip,
-                    record.action,
-                    record.target,
-                    record.outcome,
-                    serde_json::to_string(&record.detail)?,
-                    prev_hash,
-                    hash,
-                ],
-            )?;
-            Ok(id)
-        })
+        self.store.write(|tx| append_tx(tx, record, now))
     }
 
     /// 从头重算整条链，返回第一处断链位置。
@@ -131,6 +97,51 @@ impl<'store> Audit<'store> {
         let since_text = ts(since)?;
         self.store.read(|conn| export(conn, &since_text, out))
     }
+}
+
+/// 在已有事务内追加一条审计记录，返回其 ID。
+///
+/// # Errors
+///
+/// 写入失败时返回错误。
+pub(crate) fn append_tx(
+    tx: &Transaction<'_>,
+    record: &AuditRecord,
+    now: Timestamp,
+) -> StoreResult<i64> {
+    let at = ts(now)?;
+    let prev = query_opt(
+        tx,
+        "SELECT id, hash FROM audit_log ORDER BY id DESC LIMIT 1",
+        [],
+        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+    )?;
+    let (id, prev_hash) = match prev {
+        Some((last, hash)) => (
+            last.checked_add(1)
+                .ok_or_else(|| StoreError::Corrupt("审计 ID 溢出".to_owned()))?,
+            hash,
+        ),
+        None => (1, GENESIS.to_owned()),
+    };
+    let hash = chain_hash(&prev_hash, id, &at, record)?;
+    exec(tx,
+        "INSERT INTO audit_log (id, at, actor, ip, action, target, outcome, detail, prev_hash, hash)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        rusqlite::params![
+            id,
+            at,
+            record.actor,
+            record.ip,
+            record.action,
+            record.target,
+            record.outcome,
+            serde_json::to_string(&record.detail)?,
+            prev_hash,
+            hash,
+        ],
+    )?;
+    Ok(id)
 }
 
 /// 依次核对每条记录的 `prev_hash` 与重算哈希。

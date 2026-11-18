@@ -5,6 +5,8 @@ use serde::Serialize;
 use serde_json::Value;
 use xpxe_domain::{EventId, Hostname, MacAddr, NodeState, SessionId, Timestamp};
 
+use crate::audit::{AuditRecord, append_tx};
+use crate::outbox::{OutboxItem, insert_tx};
 use crate::sqlval::{exec, parse_opt_ts, parse_ts, query_opt, query_vec, ts};
 use crate::{Store, StoreError, StoreResult};
 
@@ -158,6 +160,16 @@ impl<'store> Nodes<'store> {
         self.store.write(|tx| record_event(tx, node_id, event))
     }
 
+    /// 原子地记录事件、更新运行态、追加审计并写入发件箱；重复的 `event_id` 不改动任何东西。
+    ///
+    /// # Errors
+    ///
+    /// 节点当前状态与 `from_state` 不符时返回 [`StoreError::StateChanged`]；
+    /// 写入失败时返回错误。
+    pub fn commit(self, node_id: i64, change: &Commit) -> StoreResult<EventInsert> {
+        self.store.write(|tx| commit_tx(tx, node_id, change))
+    }
+
     /// 最近的事件（从新到旧），返回 `(event_id, kind, from, to, at)`。
     ///
     /// # Errors
@@ -182,6 +194,17 @@ impl<'store> Nodes<'store> {
             )
         })
     }
+}
+
+/// 一次完整的状态提交：事件、审计与副作用。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Commit {
+    /// 事件与新运行态。
+    pub event: EventRecord,
+    /// 同事务追加的审计记录。
+    pub audit: Vec<AuditRecord>,
+    /// 同事务写入的副作用。
+    pub outbox: Vec<OutboxItem>,
 }
 
 /// 事件摘要。
@@ -250,6 +273,25 @@ fn node_by<P: rusqlite::ToSql>(conn: &Connection, filter: &str, param: P) -> Sto
 /// 未知状态时返回错误。
 fn parse_state(raw: &str) -> StoreResult<NodeState> {
     Ok(serde_json::from_value(Value::String(raw.to_owned()))?)
+}
+
+/// 事务内写事件、审计与副作用。
+///
+/// # Errors
+///
+/// 状态不符或写入失败时返回错误。
+fn commit_tx(tx: &Transaction<'_>, node_id: i64, change: &Commit) -> StoreResult<EventInsert> {
+    let inserted = record_event(tx, node_id, &change.event)?;
+    if matches!(inserted, EventInsert::Duplicate) {
+        return Ok(inserted);
+    }
+    for record in &change.audit {
+        let _id = append_tx(tx, record, change.event.at)?;
+    }
+    for item in &change.outbox {
+        insert_tx(tx, item, change.event.at)?;
+    }
+    Ok(inserted)
 }
 
 /// 事务内写事件与运行态。

@@ -54,6 +54,6 @@ d-i grub-installer/bootdev string default
 d-i finish-install/reboot_in_progress note
 d-i debian-installer/exit/poweroff boolean false
 
-d-i preseed/early_command string wget -q -O /dev/null --post-data 'event=installer.started event_id=ev-00000001' 'http://10.77.0.1:8080/events/installer.started' || true
+d-i preseed/early_command string wget -q -O /dev/null --post-data 'event=installer.started event_id=ev-00000001' 'http://10.77.0.1:8080/p/boot0001/events/installer.started' || true
 d-i partman/early_command string wget -q -O /tmp/xpxe-partman-early.sh 'http://10.77.0.1:8080/p/boot0001/partman-early.sh' && sh /tmp/xpxe-partman-early.sh
 d-i preseed/late_command string wget -q -O /tmp/xpxe-late.sh 'http://10.77.0.1:8080/p/boot0001/late.sh' && sh /tmp/xpxe-late.sh

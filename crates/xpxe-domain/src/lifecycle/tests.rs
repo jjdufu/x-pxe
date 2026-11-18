@@ -676,3 +676,27 @@ fn arm_effects() -> TestResult {
     ensure(transition.deadline.is_some(), "Armed 必须有截止时间")?;
     Ok(())
 }
+
+/// 从持久化字段恢复的运行态与原运行态行为一致。
+///
+/// # Errors
+///
+/// 断言失败时返回错误。
+#[test]
+fn restore_matches_persisted_runtime() -> TestResult {
+    let armed = at(NodeState::Armed)?;
+    let restored = NodeRuntime::restore(
+        (armed.hostname().clone(), armed.mac()),
+        super::Persisted {
+            state: armed.state(),
+            since: armed.state_since(),
+            deadline: armed.deadline(),
+            session: armed.session().cloned(),
+        },
+    );
+    ensure_eq(&restored.state(), &NodeState::Armed, "状态")?;
+    ensure_eq(&restored.session(), &armed.session(), "会话")?;
+    let next = go(&restored, NodeEventKind::InstallerStarted)?;
+    ensure_eq(&next.state(), &NodeState::Installing, "可继续转换")?;
+    Ok(())
+}

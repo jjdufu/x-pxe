@@ -1,7 +1,7 @@
 #!ipxe
 set base http://10.77.0.1:8080/p/boot0001
 echo x-pxe: installing lab-static (52:54:00:77:01:16) session sess01
-kernel ${base}/linux initrd=initrd.gz auto=true priority=critical preseed/url=http://10.77.0.1:8080/p/boot0001/preseed.cfg preseed/url/checksum=b3d4dd55f3403f614ca63dbe46bfee6a BOOTIF=01-52-54-00-77-01-16 netcfg/choose_interface=52:54:00:77:01:16 hostname=lab-static domain=lab locale=en_US.UTF-8 keymap=us netcfg/disable_autoconfig=true netcfg/get_ipaddress=10.77.0.16 netcfg/get_netmask=255.255.255.0 netcfg/get_gateway=10.77.0.1 netcfg/get_nameservers=10.77.0.1 netcfg/confirm_static=true --- console=tty0 console=ttyS0,115200n8
+kernel ${base}/linux initrd=initrd.gz auto=true priority=critical preseed/url=http://10.77.0.1:8080/p/boot0001/preseed.cfg preseed/url/checksum=64a53c33014f2452971b6541ce01e1a8 BOOTIF=01-52-54-00-77-01-16 netcfg/choose_interface=52:54:00:77:01:16 hostname=lab-static domain=lab locale=en_US.UTF-8 keymap=us netcfg/disable_autoconfig=true netcfg/get_ipaddress=10.77.0.16 netcfg/get_netmask=255.255.255.0 netcfg/get_gateway=10.77.0.1 netcfg/get_nameservers=10.77.0.1 netcfg/confirm_static=true --- console=tty0 console=ttyS0,115200n8
 initrd ${base}/initrd.gz
 boot || goto failed
 :failed

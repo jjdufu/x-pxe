@@ -546,6 +546,19 @@ impl Display for TransitionError {
 
 impl std::error::Error for TransitionError {}
 
+/// 持久化的运行态字段。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Persisted {
+    /// 当前状态。
+    pub state: NodeState,
+    /// 进入当前状态的时间。
+    pub since: Timestamp,
+    /// 当前截止时间。
+    pub deadline: Option<Timestamp>,
+    /// 活动会话。
+    pub session: Option<SessionId>,
+}
+
 /// 节点运行态。领域层不存储密钥或令牌原文。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NodeRuntime {
@@ -580,6 +593,23 @@ impl NodeRuntime {
             state_since: now,
             deadline: None,
             session: None,
+            fail_reason: None,
+            last_event_id: None,
+            last_result: None,
+        }
+    }
+
+    /// 由持久化的运行态恢复（控制面从数据库重建）；幂等由存储层的 `event_id` 去重保证。
+    #[must_use]
+    pub fn restore(identity: (Hostname, MacAddr), persisted: Persisted) -> Self {
+        let (hostname, mac) = identity;
+        Self {
+            hostname,
+            mac,
+            state: persisted.state,
+            state_since: persisted.since,
+            deadline: persisted.deadline,
+            session: persisted.session,
             fail_reason: None,
             last_event_id: None,
             last_result: None,

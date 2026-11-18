@@ -5,8 +5,10 @@ use rusqlite::{Connection, TransactionBehavior};
 use crate::{StoreError, StoreResult};
 
 /// 全部迁移，下标 + 1 即迁移后的 `user_version`。
-pub(crate) const MIGRATIONS: &[(&str, &str)] =
-    &[("0001_init", include_str!("../migrations/0001_init.sql"))];
+pub(crate) const MIGRATIONS: &[(&str, &str)] = &[
+    ("0001_init", include_str!("../migrations/0001_init.sql")),
+    ("0002_outbox", include_str!("../migrations/0002_outbox.sql")),
+];
 
 /// 把数据库迁移到最新版本。
 ///

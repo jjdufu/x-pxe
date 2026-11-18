@@ -14,6 +14,7 @@ mod crypto;
 mod migrate;
 mod nodes;
 mod observations;
+mod outbox;
 mod sqlval;
 mod tokens;
 
@@ -34,8 +35,9 @@ pub use auth::{
 };
 pub use config::{Authorship, Configs, ObjectInfo, VersionInfo, VersionRef};
 pub use crypto::{MasterKey, Secrets};
-pub use nodes::{EventInsert, EventRecord, EventSummary, NewNode, NodeRow, Nodes};
+pub use nodes::{Commit, EventInsert, EventRecord, EventSummary, NewNode, NodeRow, Nodes};
 pub use observations::{Observation, Observations, RETENTION};
+pub use outbox::{Outbox, OutboxEntry, OutboxItem};
 pub use tokens::{
     AgentToken, InstallSession, IssuedSession, Pinned, Resource, ServedDoc, SessionRequest,
     TokenKind, Tokens,
@@ -281,6 +283,12 @@ impl Store {
     #[must_use]
     pub const fn secrets(&self) -> Secrets<'_> {
         Secrets::new(self, &self.key)
+    }
+
+    /// 副作用发件箱。
+    #[must_use]
+    pub const fn outbox(&self) -> Outbox<'_> {
+        Outbox::new(self)
     }
 
     /// bootnet 观测。

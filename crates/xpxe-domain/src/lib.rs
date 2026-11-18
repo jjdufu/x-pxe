@@ -28,7 +28,8 @@ pub use inventory::{
 };
 pub use lifecycle::{
     AuditKind, Effect, EventEnvelope, EventId, EventSource, FailReason, NodeEvent, NodeEventKind,
-    NodeRuntime, NodeState, Outcome, SessionId, Timestamp, Transition, TransitionError, Ttl, apply,
+    NodeRuntime, NodeState, Outcome, Persisted, SessionId, Timestamp, Transition, TransitionError,
+    Ttl, apply,
 };
 pub use option93::ClientArch;
 pub use provision::{

@@ -19,7 +19,7 @@ use crate::support::{at, by, open};
 /// # Errors
 ///
 /// 写入失败时返回错误。
-fn armed(store: &Store) -> TestResult<(i64, xpxe_store::IssuedSession)> {
+pub(crate) fn armed(store: &Store) -> TestResult<(i64, xpxe_store::IssuedSession)> {
     let configs = store.configs();
     let timeouts = configs.create(
         "default",

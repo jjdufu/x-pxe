@@ -25,4 +25,4 @@ WantedBy=multi-user.target
 XPXE_UNIT
 in-target systemctl enable xpxe-firstboot.service
 in-target cat /etc/network/interfaces || true
-wget -q -O /dev/null --post-data 'event=installer.finished event_id=ev-00000001' 'http://10.77.0.1:8080/events/installer.finished' || true
+wget -q -O /dev/null --post-data 'event=installer.finished event_id=ev-00000001' 'http://10.77.0.1:8080/p/boot0001/events/installer.finished' || true

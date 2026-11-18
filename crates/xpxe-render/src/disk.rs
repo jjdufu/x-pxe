@@ -49,7 +49,7 @@ pub(crate) fn render_disk_artifacts(request: &RenderRequest) -> Result<DiskArtif
                 "event=installer.failed event_id={} reason=disk_selection inventory=",
                 request.event_id().as_str()
             ),
-            fail_url: format!("{}/events/installer.failed", request.boot_base().as_str()),
+            fail_url: format!("{}/events/installer.failed", request.session_base()),
             custom: recipes.is_some(),
             uefi_recipe: recipes.as_ref().map_or("", |pair| pair.uefi.as_str()),
             bios_recipe: recipes.as_ref().map_or("", |pair| pair.bios.as_str()),
@@ -307,7 +307,7 @@ fn render_late(request: &RenderRequest, unit: &str) -> Result<String, RenderErro
                 "event=installer.finished event_id={}",
                 request.event_id().as_str()
             ),
-            finished_url: format!("{}/events/installer.finished", request.boot_base().as_str()),
+            finished_url: format!("{}/events/installer.finished", request.session_base()),
         },
     )
 }

@@ -11,6 +11,8 @@ mod envelope;
 #[cfg(test)]
 mod install;
 #[cfg(test)]
+mod outbox;
+#[cfg(test)]
 mod support;
 #[cfg(test)]
 mod versions;

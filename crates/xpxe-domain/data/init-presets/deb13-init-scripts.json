@@ -1,5 +1,5 @@
 {
-  "name": "k8s-node",
+  "name": "deb13-init-scripts",
   "modules": {
     "users_keys": {
       "settings": {

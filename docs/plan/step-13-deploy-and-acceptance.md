@@ -140,11 +140,11 @@ volumes:
 
 ### 6.1 实验室验收（v1 发布条件，全部在 box 上执行）
 
-`scripts/accept.sh <场景…>|lab` 的流程：`lab/setup.sh` 与 `lab/net.sh up`（Step 2）→ `docker compose -f deploy/compose.yaml -f deploy/compose.lab.yaml up -d` 部署被测镜像 → 经管理 API 完成初始化（改密、上传或获取资产、导入实验室 Profile 与 `k8s-node` 计划）→ 依次运行场景。每个场景输出 PASS/FAIL、耗时与日志目录（串口日志、`br-lab` 抓包、控制面事件导出），汇总为 `docs/acceptance/<日期>.md`。装机类场景每台虚拟机 2 vCPU / 2 GiB，默认 `-j 2`。
+`scripts/accept.sh <场景…>|lab` 的流程：`lab/setup.sh` 与 `lab/net.sh up`（Step 2）→ `docker compose -f deploy/compose.yaml -f deploy/compose.lab.yaml up -d` 部署被测镜像 → 经管理 API 完成初始化（改密、上传或获取资产、导入实验室 Profile 与 `deb13-init-scripts` 计划）→ 依次运行场景。每个场景输出 PASS/FAIL、耗时与日志目录（串口日志、`br-lab` 抓包、控制面事件导出），汇总为 `docs/acceptance/<日期>.md`。装机类场景每台虚拟机 2 vCPU / 2 GiB，默认 `-j 2`。
 
 | 场景 | 步骤 | 通过条件 |
 | :--- | :--- | :--- |
-| A `lan-bios` | ProxyDHCP 模式，`lab-dhcp`（`coexist`）分配地址；SeaBIOS + virtio-net 与 SeaBIOS + e1000 各一台，登记并 arm | 自动装完 Debian 13 → firstboot 执行 `k8s-node` 计划 → `Ready`；目标机上 `dpkg-query` 包清单与计划一致；全程无人工输入 |
+| A `lan-bios` | ProxyDHCP 模式，`lab-dhcp`（`coexist`）分配地址；SeaBIOS + virtio-net 与 SeaBIOS + e1000 各一台，登记并 arm | 自动装完 Debian 13 → firstboot 执行 `deb13-init-scripts` 计划 → `Ready`；目标机上 `dpkg-query` 包清单与计划一致；全程无人工输入 |
 | B `lan-uefi` | 同 A，OVMF + e1000e 与 OVMF + vmxnet3 | 同 A；抓包可见 4011 REQUEST/ACK 与 TFTP `ipxe.efi` |
 | C `nic-matrix` | Step 2 矩阵 B1–B6、U1–U6 在被测产品上重跑（只到 d-i 取走 preseed，随后关闭虚拟机并以 `Reset` 事件让节点回到 `Idle`） | 全部与 Step 2 结论一致 |
 | D `http-boot` | `ovmf-http`（只剩 HTTP Boot 启动项）× virtio-net、e1000e | 经 `HTTPClient` 应答下载 `ipxe.efi` 并装完 |

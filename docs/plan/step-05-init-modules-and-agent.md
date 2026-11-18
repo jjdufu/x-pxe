@@ -32,7 +32,7 @@
 
 ## 4. 模块目录
 
-模块顺序固定（依赖顺序），每个模块可单独启用。`来源` 列指向 `legacy/init-d13.sh` 中对应的功能段。内置两个计划预设：`k8s-node`（全部模块按 legacy 行为取值，等价性由第 7 节测试证明）与 `minimal`（只启用 `users_keys`、`sshd`、`timezone`、`time_sync`、`locale`、`apt_sources`、`packages.base_ops`）。
+模块顺序固定（依赖顺序），每个模块可单独启用。`来源` 列指向 `legacy/init-d13.sh` 中对应的功能段。内置两个计划预设：`deb13-init-scripts`（全部模块按 `legacy/init-d13.sh` 的行为取值，复现该脚本对 Debian 13 的初始化，不安装 Kubernetes；等价性由第 7 节测试证明）与 `minimal`（只启用 `users_keys`、`sshd`、`timezone`、`time_sync`、`locale`、`apt_sources`、`packages.base_ops`）。
 
 | # | 模块 id | 来源 | 字段（类型 / 范围 / 默认） | 生成物 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -50,7 +50,7 @@
 | 12 | `vimrc` | vimrc 段 | `enabled: bool = true`；`targets: Vec<UnixUser> = [root, jwczjzl]`；内容为内置模板 `vimrc.default`（与 legacy 内容一致） | 各用户 `~/.vimrc`，属主正确 |
 | 13 | `services` | 服务段 | `disable_now: Vec<UnitName> = [apt-daily.timer, apt-daily-upgrade.timer]`；`enable_now: Vec<UnitName> = [ssh]`（启用前先 `unmask`）；`mask: Vec<UnitName> = [cryptdisks-early.service, cryptdisks.service, x11-common.service, nftables.service]`；`default_editor: Option<AbsPath> = /usr/bin/vim.basic` | `systemctl` 操作、`daemon-reload`、`update-alternatives --set editor` |
 | 14 | `motd` | MOTD/Banner 段 | `clear_issue: bool = true`；`clear_motd: bool = true`；`disable_update_motd_scripts: bool = true`；`custom_header: { enabled = true, bar_width: 20..=120 = 60, warn_percent: 50..=99 = 90, exclude_fs = [zfs, squashfs, tmpfs, devtmpfs, overlay] }` | 清空 `/etc/issue(.net)`、`/etc/motd`；`chmod -x /etc/update-motd.d/*`；`/etc/update-motd.d/00-custom-header`（系统、内核、运行时长、CPU、内存、负载、进程、用户、磁盘条形图）；CPU 型号缺失（如 ARM64 无 `model name`）与非数字使用率在头部脚本内有兜底 |
-| 15 | `sysctl` | 内核参数段 | `file_name: SafeFileName = 99-fleet-netvm.conf`；`preset: K8sNode \| WebServer \| Minimal = K8sNode`；约 40 个有类型参数（见 4.2）；`extra: Vec<{ key: SysctlKey, value: SafeText }>`；`apply_now: bool = true` | `/etc/sysctl.d/<file_name>`、`sysctl --system`（失败项作为警告回报，不中断） |
+| 15 | `sysctl` | 内核参数段 | `file_name: SafeFileName = 99-fleet-netvm.conf`；`preset: Deb13InitScripts \| WebServer \| Minimal = Deb13InitScripts`；约 40 个有类型参数（见 4.2）；`extra: Vec<{ key: SysctlKey, value: SafeText }>`；`apply_now: bool = true` | `/etc/sysctl.d/<file_name>`、`sysctl --system`（失败项作为警告回报，不中断） |
 | 16 | `limits` | limits 段 | `file_name = 90-nofile.conf`；`nofile: 1024..=1048576 = 655350`（soft/hard）；`nproc: Unlimited \| N = Unlimited`；`core: Unlimited \| N = Unlimited` | `/etc/security/limits.d/<file_name>` |
 | 17 | `history_audit` | 命令历史审计段 | `dir: AbsPath = /var/log/.history`；`dir_mode = 1777`；`histsize: 1000..=1000000 = 100000`；`append_only: bool = true`（`chattr +a`）；`timeformat_with_source_ip: bool = true` | `/etc/profile.d/history-record.sh`（每次登录独立 HISTFILE） |
 | 18 | `fstrim` | fstrim 注释段 | `enable_timer: bool = false` | `systemctl enable --now fstrim.timer` |
@@ -72,7 +72,7 @@
 
 8 个分组的并集正好等于 legacy `PKGS` 的 80 个包（第 7 节有测试保证）。
 
-| 分组 | 默认（k8s-node / minimal） | 包 |
+| 分组 | 默认（deb13-init-scripts / minimal） | 包 |
 | :--- | :--- | :--- |
 | `base_ops` 基础运维 | 开 / 开 | sudo vim git curl wget rsync jq tree tmux btop bash-completion man-db cron dialog dos2unix zip xz-utils p7zip-full psmisc ncdu ripgrep rsyslog iputils-ping gpg expect |
 | `net_diag` 网络诊断 | 开 / 关 | dnsutils net-tools nload iftop tcptraceroute fping hping3 socat |
@@ -87,9 +87,9 @@
 
 ### 4.2 sysctl 参数
 
-每个参数是一个有类型字段，三档预设只是不同的默认值组合。`K8sNode` 与 legacy 文件逐项一致：
+每个参数是一个有类型字段，三档预设只是不同的默认值组合。`Deb13InitScripts` 与 legacy 文件逐项一致：
 
-| 组 | 参数（类型 / 范围 / K8sNode 默认） |
+| 组 | 参数（类型 / 范围 / Deb13InitScripts 默认） |
 | :--- | :--- |
 | 转发与 IPv6 | `net.ipv4.ip_forward` bool = 1；`disable_ipv6`（all/default/lo 三项联动）bool = 1，开启时 Web 显示“确认无双栈依赖”提示 |
 | TCP | `tcp_syncookies` bool = 1；`tcp_tw_reuse` 0..=2 = 1；`tcp_fin_timeout` 5..=120 = 30；`tcp_syn_retries` 1..=10 = 5；`tcp_synack_retries` 1..=10 = 5；`tcp_fastopen` 0..=3 = 3；`tcp_slow_start_after_idle` bool = 0 |
@@ -142,10 +142,10 @@ xpxe-agent verify --plan <file>          # 只校验计划（排障用）
 | 测试 | 内容 |
 | :--- | :--- |
 | `xpxe-domain` 单元 | 每个字段的范围与默认值；跨模块校验；`package-groups.json` 并集 = legacy `PKGS`（测试从 `legacy/init-d13.sh` 解析 `PKGS=( … )` 对比，保证 legacy 变化时测试提醒） |
-| `xpxe-render` 快照 | `k8s-node` 与 `minimal` 两个预设的逐模块快照；每个模块脚本经 `bash -n` |
+| `xpxe-render` 快照 | `deb13-init-scripts` 与 `minimal` 两个预设的逐模块快照；每个模块脚本经 `bash -n` |
 | 注入 | 所有字符串字段写入 shell 元字符，断言被类型拒绝或被正确引用 |
 | `xpxe-agent` 集成 | `tests/run/`：用临时目录与假的 `/bin/bash` 替身脚本验证超时、续跑、回报顺序、失败时不重启（重启动作经 trait 注入，测试实现只记录调用） |
-| 等价性（实验室） | 两台全新 Debian 13 云镜像虚拟机：A 执行 `legacy/init-d13.sh`（替换口令与公钥为测试值），B 执行 `k8s-node` 预设计划；比较 `/etc/ssh/sshd_config.d/`、`/etc/sudoers.d/`、`/etc/sysctl.d/`、`/etc/security/limits.d/`、`/etc/profile.d/`、`/etc/update-motd.d/00-custom-header`、`/etc/default/locale`、`/etc/locale.gen`、`/etc/systemd/*.conf.d/`、`~/.vimrc`、`dpkg-query -W` 包清单、`systemctl list-unit-files --state=masked`；允许的差异只有 `/var/log/xpxe-firstboot.log` 被保留 |
+| 等价性（实验室） | 两台全新 Debian 13 云镜像虚拟机：A 执行 `legacy/init-d13.sh`（替换口令与公钥为测试值），B 执行 `deb13-init-scripts` 预设计划；比较 `/etc/ssh/sshd_config.d/`、`/etc/sudoers.d/`、`/etc/sysctl.d/`、`/etc/security/limits.d/`、`/etc/profile.d/`、`/etc/update-motd.d/00-custom-header`、`/etc/default/locale`、`/etc/locale.gen`、`/etc/systemd/*.conf.d/`、`~/.vimrc`、`dpkg-query -W` 包清单、`systemctl list-unit-files --state=masked`；允许的差异只有 `/var/log/xpxe-firstboot.log` 被保留 |
 
 ## 8. 验收
 
@@ -153,7 +153,7 @@ xpxe-agent verify --plan <file>          # 只校验计划（排障用）
 cargo test -p xpxe-domain -p xpxe-render -p xpxe-agent --all-targets --locked
 cargo build --locked --release --target x86_64-unknown-linux-musl -p xpxe-agent
 file target/x86_64-unknown-linux-musl/release/xpxe-agent | grep -F 'statically linked'
-cargo run -p xpxe-lab -- render-plan --preset k8s-node --out /tmp/plan.json
+cargo run -p xpxe-lab -- render-plan --preset deb13-init-scripts --out /tmp/plan.json
 lab/run.sh init-equivalence --plan /tmp/plan.json --legacy legacy/init-d13.sh
 scripts/gate.sh
 ```

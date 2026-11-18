@@ -80,7 +80,7 @@ xpxe-control version                    # 版本、提交、构建时间、rustc
 
 | 场景 | 断言 |
 | :--- | :--- |
-| `lan_uefi` | 初始管理员登录并改密 → 用 `nexus-lvm` 与 `k8s-node` 预设建配置 → 离线上传夹具资产并激活 → 登记节点 → arm → 回放 OVMF DISCOVER 得到 `fw/<sha12>/ipxe.efi` → TFTP 下载字节一致 → 回放 iPXE DISCOVER 得到会话 URL → 取脚本、preseed（第二次 410）→ `installer.started/finished` → agent 令牌取计划（Boot 令牌被拒）→ `agent.started/finished` → `Ready` → 再次回放 DISCOVER 无应答、`/boot/mac` 返回 `exit` |
+| `lan_uefi` | 初始管理员登录并改密 → 用 `nexus-lvm` 与 `deb13-init-scripts` 预设建配置 → 离线上传夹具资产并激活 → 登记节点 → arm → 回放 OVMF DISCOVER 得到 `fw/<sha12>/ipxe.efi` → TFTP 下载字节一致 → 回放 iPXE DISCOVER 得到会话 URL → 取脚本、preseed（第二次 410）→ `installer.started/finished` → agent 令牌取计划（Boot 令牌被拒）→ `agent.started/finished` → `Ready` → 再次回放 DISCOVER 无应答、`/boot/mac` 返回 `exit` |
 | `lan_bios` | 同上，BIOS 夹具，得到 `undionly.kpxe` |
 | `http_boot` | HTTP Boot 夹具得到含端口的 URL 与 Opt60 `HTTPClient` |
 | `timeouts` | 每个带超时的状态拨动时钟后进入期望状态；迟到的回调被拒为 `StaleSession` |

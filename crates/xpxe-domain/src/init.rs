@@ -1,6 +1,6 @@
 //! 初始化模块：把 `legacy/init-d13.sh` 拆成 20 个有类型、有范围、有默认值的模块。
 //!
-//! 默认值即 `k8s-node` 预设中与具体用户无关的部分；用户相关字段（受管用户、公钥、
+//! 默认值即 `deb13-init-scripts` 预设中与具体用户无关的部分；用户相关字段（受管用户、公钥、
 //! `vimrc.targets`、`sudoers.full_sudo_users`）由预设 JSON 给出。
 
 mod access;
@@ -42,8 +42,9 @@ use crate::versioning::{
     migrate_current,
 };
 
-/// 内置预设 `k8s-node`。
-const PRESET_K8S_NODE: &str = include_str!("../data/init-presets/k8s-node.json");
+/// 内置预设 `deb13-init-scripts`。
+const PRESET_DEB13_INIT_SCRIPTS: &str =
+    include_str!("../data/init-presets/deb13-init-scripts.json");
 /// 内置预设 `minimal`。
 const PRESET_MINIMAL: &str = include_str!("../data/init-presets/minimal.json");
 
@@ -383,7 +384,7 @@ pub struct TargetPlan {
 
 impl TargetPlan {
     /// 内置预设名。
-    pub const PRESETS: [&'static str; 2] = ["k8s-node", "minimal"];
+    pub const PRESETS: [&'static str; 2] = ["deb13-init-scripts", "minimal"];
 
     /// 加载内置预设并校验。
     ///
@@ -392,7 +393,7 @@ impl TargetPlan {
     /// 未知预设、JSON 损坏或校验失败时返回错误。
     pub fn load_preset(name: &str) -> Result<Self, ConfigError> {
         let raw = match name {
-            "k8s-node" => PRESET_K8S_NODE,
+            "deb13-init-scripts" => PRESET_DEB13_INIT_SCRIPTS,
             "minimal" => PRESET_MINIMAL,
             _ => return Err(ConfigError::Json(format!("未知初始化预设 {name}"))),
         };

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # 场景编排：lab/run.sh [-j N] [--keep] [--www <目录>] <场景…>|all|capture|services|stop-services
 # Step 4 装机场景：install-uefi | install-bios | install-static（完整跑完 d-i 并从系统盘重启）
+# Step 5 初始化等价性：init-equivalence [--plan <plan.json>] [--legacy <脚本>]（lab/lib/init-equivalence.sh）
 # 每个场景输出 PASS/FAIL、耗时与日志目录（lab/out/<场景>/）。
 source "$(dirname "$0")/lib/common.sh"
+source "$(dirname "$0")/lib/init-equivalence.sh"
 JOBS=1 KEEP=0 WWW_OVERRIDE=""
 BASE="http://${LAB_IP}:8080"
 mac_of() { echo "52:54:00:77:01:$1"; }
@@ -394,6 +396,7 @@ done
 [ $# -gt 0 ] || { echo "用法：lab/run.sh [-j N] [--keep] <场景…>|all|capture|services|stop-services" >&2; exit 2; }
 case "$1" in
   capture) collect_fixtures; exit 0 ;;
+  init-equivalence) shift; services noproxy; acng_up; ieq_main "$@"; exit 0 ;;
   services) services "${2:-proxy}"; exit 0 ;;
   stop-services) stop_services; exit 0 ;;
   install-all) set -- install-uefi install-bios install-static ;;

@@ -19,7 +19,7 @@ use crate::value::SafeText;
 ///
 /// 默认计划无法序列化时返回错误。
 fn with_field(path: &[&str], value: Value) -> TestResult<Result<TargetPlan, serde_json::Error>> {
-    let mut doc = serde_json::to_value(TargetPlan::load_preset("k8s-node")?)?;
+    let mut doc = serde_json::to_value(TargetPlan::load_preset("deb13-init-scripts")?)?;
     let mut cursor = &mut doc;
     for key in path {
         cursor = cursor
@@ -62,7 +62,7 @@ fn defaults_round_trip() -> TestResult {
         "自定义片段默认关闭",
     )?;
     for preset in [
-        SysctlPreset::K8sNode,
+        SysctlPreset::Deb13InitScripts,
         SysctlPreset::WebServer,
         SysctlPreset::Minimal,
     ] {
@@ -80,10 +80,10 @@ fn defaults_round_trip() -> TestResult {
 /// 预设不符时返回错误。
 #[test]
 fn presets_load() -> TestResult {
-    let k8s = TargetPlan::load_preset("k8s-node")?;
+    let full = TargetPlan::load_preset("deb13-init-scripts")?;
     for id in ModuleId::ALL {
         let expect = id != ModuleId::CustomSnippet;
-        ensure_eq(&k8s.modules.view(id).enabled.is_on(), &expect, id.as_str())?;
+        ensure_eq(&full.modules.view(id).enabled.is_on(), &expect, id.as_str())?;
     }
     let minimal = TargetPlan::load_preset("minimal")?;
     let enabled: Vec<&str> = ModuleId::ALL
@@ -283,8 +283,8 @@ fn types_reject_metacharacters() -> TestResult {
 /// 校验结果不符时返回错误。
 #[test]
 fn login_path_required() -> TestResult {
-    let mut plan = TargetPlan::load_preset("k8s-node")?;
-    ensure(codes(&plan).is_empty(), "k8s-node 通过")?;
+    let mut plan = TargetPlan::load_preset("deb13-init-scripts")?;
+    ensure(codes(&plan).is_empty(), "deb13-init-scripts 通过")?;
     plan.modules
         .users_keys
         .settings
@@ -306,7 +306,7 @@ fn login_path_required() -> TestResult {
 /// 校验结果不符时返回错误。
 #[test]
 fn cross_module_rules() -> TestResult {
-    let mut plan = TargetPlan::load_preset("k8s-node")?;
+    let mut plan = TargetPlan::load_preset("deb13-init-scripts")?;
     plan.modules
         .vimrc
         .settings
@@ -373,7 +373,7 @@ fn cross_module_rules() -> TestResult {
 /// 警告不符时返回错误。
 #[test]
 fn warnings_reported() -> TestResult {
-    let plan = TargetPlan::load_preset("k8s-node")?;
+    let plan = TargetPlan::load_preset("deb13-init-scripts")?;
     let codes: Vec<String> = plan
         .warnings()
         .into_iter()
@@ -385,7 +385,7 @@ fn warnings_reported() -> TestResult {
             "fail2ban_without_firewall".to_owned(),
             "confirm_no_dual_stack".to_owned(),
         ],
-        "k8s-node 警告",
+        "deb13-init-scripts 警告",
     )?;
     let minimal = TargetPlan::load_preset("minimal")?;
     ensure(minimal.warnings().is_empty(), "minimal 无警告")?;
@@ -400,7 +400,7 @@ fn warnings_reported() -> TestResult {
 #[test]
 fn package_resolution() -> TestResult {
     let catalog = PackageCatalog::builtin()?;
-    let mut plan = TargetPlan::load_preset("k8s-node")?;
+    let mut plan = TargetPlan::load_preset("deb13-init-scripts")?;
     let pkgs = &mut plan.modules.packages.settings;
     pkgs.exclude
         .push(crate::value::PackageName::parse("clamav")?);

@@ -28,7 +28,7 @@ fn kv(out: &mut Lines, key: &str, value: impl std::fmt::Display) {
     out.push(format!("{key} = {value}"));
 }
 
-/// sysctl 文件正文（K8sNode 取值时与 legacy 文件逐字节一致）。
+/// sysctl 文件正文（Deb13InitScripts 取值时与 legacy 文件逐字节一致）。
 pub(crate) fn sysctl_content(params: &SysctlParams, extra: &[SysctlExtra]) -> String {
     let mut out: Lines = vec![String::new()];
     sysctl_forward_tcp(&mut out, params);

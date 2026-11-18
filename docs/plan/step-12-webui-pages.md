@@ -65,12 +65,12 @@
 
 | 项 | 规格 |
 | :--- | :--- |
-| 列表 | 同 Profile；新建可选预设 `k8s-node`、`minimal` |
+| 列表 | 同 Profile；新建可选预设 `deb13-init-scripts`、`minimal` |
 | 编辑布局 | ≥ 1024 px 三栏：左模块列表、中模块表单、右预览；< 1024 px 模块列表变为顶部 `Select`，预览折叠 |
 | 模块列表 | 20 个模块按执行顺序排列，样式同侧栏 `.nav-item`（序号用 `.nav-num` 风格）+ `Switch` 启用开关 + 校验状态点；表单由 `GET /init-modules` 的字段 schema 驱动 |
 | 字段控件 | 布尔→`Switch`；有范围的整数→`NumberField`（显示范围与默认值，`Tooltip` 解释用途）；枚举→`RadioCards`（≤ 4 项）或 `Select`；列表→可增删行；包名/用户组/单元名→`Combobox` 标签；SSH 公钥→`Textarea` 每行一把，逐行校验并显示指纹 |
 | 软件包模块 | 8 个分组 `Checkbox`，每组显示包数 `Badge`，可展开查看清单；额外与排除列表；底部显示最终安装包数 |
-| sysctl 模块 | 预设 `RadioCards`（K8sNode/WebServer/Minimal）+ 按组 `Accordion`；与预设不同的字段旁显示“已修改”标记与“恢复预设值” |
+| sysctl 模块 | 预设 `RadioCards`（Deb13InitScripts/WebServer/Minimal）+ 按组 `Accordion`；与预设不同的字段旁显示“已修改”标记与“恢复预设值” |
 | 自定义片段 | 顶部 `ui-alert-danger`“以 root 在每台目标机上执行”；非 admin 只读；开启需 `AlertDialog`；`Textarea` 等宽字体；语法错误逐条列出行号 |
 | 预览 | `Tabs`：本模块脚本、整份计划、与头版本的差异（`DiffView`）；跨模块校验错误（如“关闭密码登录但没有带公钥的 sudo 用户”）在顶部 `Alert` 中列出并链接到字段 |
 | 保存栏 | 同 Profile |
@@ -129,7 +129,7 @@
 1. 初始管理员登录 → 强制改密。
 2. 上传 iPXE 与 Debian 夹具资产 → 激活（跳过金丝雀并填写理由）→ 审计页出现该记录。
 3. 由 `nexus-lvm` 预设新建 Profile → 修改 NTP → 预览中 `clock-setup/ntp-server` 实时变化 → 保存 → 差异中可见该字段。
-4. 由 `k8s-node` 预设新建初始化计划 → 关闭 `docs_fonts` 分组 → `packages` 模块预览中对应包消失、包数减 6 → 保存。
+4. 由 `deb13-init-scripts` 预设新建初始化计划 → 关闭 `docs_fonts` 分组 → `packages` 模块预览中对应包消失、包数减 6 → 保存。
 5. 引导网络选“复用现有 DHCP”→ 片段 Tabs 出现。
 6. 新建节点 → arm → 状态徽章变为 Armed、倒计时开始。
 7. 运行 `cargo run -p xpxe-lab -- simulate-install --boot-base http://127.0.0.1:8080 --mac <mac>`（本步为 `xpxe-lab` 增加的子命令，受同一门禁约束）：它像真实客户端一样请求 `/boot/mac/{mac}` 得到会话 URL，取 preseed 并从 `late_command` 中解析出 agent 令牌，再取计划并按 d-i 与 agent 的顺序 POST 事件，不使用任何测试后门；页面无刷新地依次显示 Installing → Installed → Configuring → Ready，抽屉事件时间轴同步增长，期间节点表的选择与搜索词保持不变。

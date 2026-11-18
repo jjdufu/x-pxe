@@ -1,6 +1,6 @@
 //! `render-plan`：用内置初始化预设渲染一份计划文件（Step 5），可选写出逐模块脚本。
 //!
-//! 参数：`--preset <k8s-node|minimal>`、`--out <plan.json>`、`[--profile official-mirror]`、
+//! 参数：`--preset <deb13-init-scripts|minimal>`、`--out <plan.json>`、`[--profile official-mirror]`、
 //! `[--set /json/pointer=<JSON>]…`、`[--scripts <dir>]`、`[--session lab-init]`、
 //! `[--events-url http://10.77.0.1:8080/p/labagent01/events]`、`[--final-retry 600]`。
 

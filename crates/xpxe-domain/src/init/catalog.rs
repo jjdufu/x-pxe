@@ -45,7 +45,7 @@ impl PackageGroup {
     ];
 }
 
-/// 8 个分组开关（默认全部开启，即 `k8s-node` 取值）。
+/// 8 个分组开关（默认全部开启，即 `deb13-init-scripts` 取值）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PackageGroups {

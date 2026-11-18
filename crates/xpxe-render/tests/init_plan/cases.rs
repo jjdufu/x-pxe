@@ -231,7 +231,7 @@ const LEGACY_FILES: [(ModuleId, &str, &str); 13] = [
     ),
 ];
 
-/// k8s-node 渲染出的配置文件与 legacy 中的同名文件逐字节一致。
+/// deb13-init-scripts 渲染出的配置文件与 legacy 中的同名文件逐字节一致。
 ///
 /// # Errors
 ///
@@ -241,7 +241,7 @@ fn files_match_legacy() -> TestResult {
     let legacy = fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../legacy/init-d13.sh"),
     )?;
-    let rendered = render(&TargetPlan::load_preset("k8s-node")?)?;
+    let rendered = render(&TargetPlan::load_preset("deb13-init-scripts")?)?;
     let script = |id: ModuleId| {
         rendered
             .modules
@@ -271,7 +271,7 @@ fn files_match_legacy() -> TestResult {
 /// 出现未转义插值时返回错误。
 #[test]
 fn injection_is_quoted() -> TestResult {
-    let mut plan = TargetPlan::load_preset("k8s-node")?;
+    let mut plan = TargetPlan::load_preset("deb13-init-scripts")?;
     let evil_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l x'$(id)`id`;rm -rf /";
     let key = SshPublicKey::parse(evil_key)?;
     plan.modules.users_keys.settings.root_authorized_keys = vec![key];
@@ -305,7 +305,7 @@ fn injection_is_quoted() -> TestResult {
 /// 判断不符时返回错误。
 #[test]
 fn snippet_checks() -> TestResult {
-    let mut plan = TargetPlan::load_preset("k8s-node")?;
+    let mut plan = TargetPlan::load_preset("deb13-init-scripts")?;
     plan.modules.custom_snippet.enabled = Flag::ON;
     plan.modules.custom_snippet.settings.snippets = vec![Snippet {
         name: SafeText::parse("bad")?,
@@ -338,7 +338,7 @@ fn snippet_checks() -> TestResult {
 /// 差异不符时返回错误。
 #[test]
 fn diff_between_versions() -> TestResult {
-    let old_plan = TargetPlan::load_preset("k8s-node")?;
+    let old_plan = TargetPlan::load_preset("deb13-init-scripts")?;
     let mut new_plan = old_plan.clone();
     new_plan.modules.sysctl.settings.params.memory.swappiness = Ranged::new(1)?;
     let diffs = diff_plans(&render(&old_plan)?, &render(&new_plan)?);

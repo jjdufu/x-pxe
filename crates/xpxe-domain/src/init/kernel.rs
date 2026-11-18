@@ -18,9 +18,9 @@ pub type Count = Ranged<1, COUNT_MAX>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SysctlPreset {
-    /// K8s 节点（与 legacy 逐项一致）。
+    /// `legacy/init-d13.sh` 的内核参数（逐项一致：转发开启、关闭 IPv6）。
     #[default]
-    K8sNode,
+    Deb13InitScripts,
     /// Web 服务器（不转发、保留 IPv6）。
     WebServer,
     /// 最小（接近发行版默认，仅保留连接表与文件监控调优）。
@@ -233,7 +233,7 @@ pub struct SysctlParams {
 
 impl Default for SysctlParams {
     fn default() -> Self {
-        Self::for_preset(SysctlPreset::K8sNode)
+        Self::for_preset(SysctlPreset::Deb13InitScripts)
     }
 }
 
@@ -241,12 +241,12 @@ impl SysctlParams {
     /// 某预设的参数组合。
     #[must_use]
     pub const fn for_preset(preset: SysctlPreset) -> Self {
-        let k8s = matches!(preset, SysctlPreset::K8sNode);
+        let legacy = matches!(preset, SysctlPreset::Deb13InitScripts);
         let tuned = !matches!(preset, SysctlPreset::Minimal);
         Self {
             forward: ForwardParams {
-                ip_forward: Flag::new(k8s),
-                disable_ipv6: Flag::new(k8s),
+                ip_forward: Flag::new(legacy),
+                disable_ipv6: Flag::new(legacy),
             },
             tcp: TcpParams {
                 syncookies: Flag::ON,
@@ -285,7 +285,7 @@ impl SysctlParams {
             security: SecurityParams {
                 accept_redirects: Flag::OFF,
                 secure_redirects: Flag::OFF,
-                rp_filter: Ranged::clamped(if k8s { 0 } else { 2 }),
+                rp_filter: Ranged::clamped(if legacy { 0 } else { 2 }),
             },
         }
     }
@@ -347,7 +347,7 @@ impl Default for Sysctl {
     fn default() -> Self {
         Self {
             file_name: SafeFileName::from_static("99-fleet-netvm.conf"),
-            preset: SysctlPreset::K8sNode,
+            preset: SysctlPreset::Deb13InitScripts,
             params: SysctlParams::default(),
             extra: Vec::new(),
             apply_now: Flag::ON,

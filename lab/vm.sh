@@ -3,15 +3,18 @@
 # lab/vm.sh --name <n> --fw seabios|ovmf|ovmf-http --nic <model> --mac <mac> --tap <tap>
 #           [--nic2 <model> --mac2 <mac> --tap2 <tap>] [--boot net-first|disk-first|nic2-first]
 #           [--disks <sys>,<data>] [--kernel <f> --initrd <f>] [--cdrom <iso>] [--mem <MiB>]
+#           [--image <云镜像 qcow2>] [--seed <NoCloud 目录>]
+# --image：系统盘为以云镜像为底的 qcow2 覆盖层（大小取 --disks 的第一项）；
+# --seed：目录经 QEMU vvfat 以卷标 CIDATA 挂为只读盘（cloud-init NoCloud，无需 ISO/FAT 工具）。
 source "$(dirname "$0")/lib/common.sh"
 name="" fw=seabios nic=virtio-net-pci mac="" tap="" nic2="" mac2="" tap2="" boot=net-first
-disks="20G,60G" kernel="" initrd="" cdrom="" mem=2048
+disks="20G,60G" kernel="" initrd="" cdrom="" mem=2048 image="" seed=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --name) name="$2" ;; --fw) fw="$2" ;; --nic) nic="$2" ;; --mac) mac="$2" ;; --tap) tap="$2" ;;
     --nic2) nic2="$2" ;; --mac2) mac2="$2" ;; --tap2) tap2="$2" ;; --boot) boot="$2" ;;
     --disks) disks="$2" ;; --kernel) kernel="$2" ;; --initrd) initrd="$2" ;; --cdrom) cdrom="$2" ;;
-    --mem) mem="$2" ;;
+    --mem) mem="$2" ;; --image) image="$2" ;; --seed) seed="$2" ;;
     *) die "未知参数 $1" ;;
   esac
   shift 2
@@ -20,7 +23,11 @@ done
 VM="${WORK}/vm/${name}"; rm -rf "${VM}"; mkdir -p "${VM}"
 case "${nic}" in virtio|virtio-net) nic=virtio-net-pci ;; esac
 case "${nic2}" in virtio|virtio-net) nic2=virtio-net-pci ;; esac
-qemu-img create -q -f qcow2 "${VM}/sys.qcow2" "${disks%%,*}"
+if [ -n "${image}" ]; then
+  qemu-img create -q -f qcow2 -b "$(realpath "${image}")" -F qcow2 "${VM}/sys.qcow2" "${disks%%,*}"
+else
+  qemu-img create -q -f qcow2 "${VM}/sys.qcow2" "${disks%%,*}"
+fi
 qemu-img create -q -f qcow2 "${VM}/data.qcow2" "${disks##*,}"
 truncate -s 1G "${VM}/vusb.raw"
 nb1=1 nb2=3 db=2
@@ -48,6 +55,8 @@ args+=(-drive "if=none,id=sys,file=${VM}/sys.qcow2" -device "virtio-blk-pci,driv
        -drive "if=none,id=data,file=${VM}/data.qcow2" -device virtio-blk-pci,drive=data,serial=DATA0001
        -device qemu-xhci -drive "if=none,id=vusb,format=raw,file=${VM}/vusb.raw"
        -device usb-storage,drive=vusb,removable=on,serial=VUSB0001)
+[ -n "${seed}" ] && args+=(-drive "if=none,id=seed,driver=vvfat,dir=$(realpath "${seed}"),label=CIDATA,read-only=on"
+                            -device virtio-blk-pci,drive=seed)
 [ -n "${kernel}" ] && args+=(-kernel "${kernel}")
 [ -n "${initrd}" ] && args+=(-initrd "${initrd}")
 [ -n "${cdrom}" ] && args+=(-drive "if=none,id=cd,format=raw,readonly=on,file=${cdrom}" -device "ide-cd,drive=cd,bootindex=0")

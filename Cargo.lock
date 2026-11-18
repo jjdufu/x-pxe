@@ -1379,6 +1379,33 @@ dependencies = [
 [[package]]
 name = "xpxe-control"
 version = "0.1.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "futures-util",
+ "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "xpxe-assets",
+ "xpxe-domain",
+ "xpxe-image",
+ "xpxe-redfish",
+ "xpxe-render",
+ "xpxe-store",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-dhcp"

@@ -24,16 +24,19 @@ xpxe-render = { path = "crates/xpxe-render" }
 xpxe-assets = { path = "crates/xpxe-assets" }
 xpxe-store = { path = "crates/xpxe-store" }
 xpxe-redfish = { path = "crates/xpxe-redfish" }
+xpxe-control = { path = "crates/xpxe-control" }
+xpxe-bootnet = { path = "crates/xpxe-bootnet" }
 # 第三方：统一关闭默认特性，按需开启
 tokio = { version = "~1.46", default-features = false, features = ["rt-multi-thread", "net", "time", "fs", "io-util", "signal", "sync"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query", "form", "matched-path", "original-uri"] }
 tower = { version = "0.5", default-features = false, features = ["util"] }
 tower-http = { version = "0.7", default-features = false, features = ["trace", "limit", "set-header"] }
 hyper = { version = "1", default-features = false, features = ["http1", "client", "server"] }
-hyper-util = { version = ">=0.1.16, <0.1.17", default-features = false, features = ["tokio", "client-legacy", "http1"] }
+hyper-util = { version = ">=0.1.16, <0.1.17", default-features = false, features = ["tokio", "client-legacy", "http1", "server", "service"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "tls12", "ring", "webpki-tokio"] }
 http = { version = "1", default-features = false, features = ["std"] }
 http-body-util = { version = "0.1", default-features = false }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 bytes = { version = "1", default-features = false, features = ["std"] }
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "ring"] }

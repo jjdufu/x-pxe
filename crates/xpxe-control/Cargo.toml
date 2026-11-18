@@ -15,3 +15,30 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+xpxe-domain.workspace = true
+xpxe-store.workspace = true
+xpxe-render.workspace = true
+xpxe-assets.workspace = true
+xpxe-image.workspace = true
+xpxe-redfish.workspace = true
+tokio.workspace = true
+axum.workspace = true
+tower.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+bytes.workspace = true
+futures-util.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+time.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+xpxe-test-support.workspace = true

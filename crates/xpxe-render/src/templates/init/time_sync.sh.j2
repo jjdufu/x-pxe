@@ -1,0 +1,28 @@
+export DEBIAN_FRONTEND=noninteractive
+{% if mode == "timesyncd" %}
+{% if ensure_installed %}
+if ! dpkg-query -W -f='${Status}' systemd-timesyncd 2>/dev/null | grep -q 'install ok installed'; then
+  apt-get install -y systemd-timesyncd
+fi
+{% endif %}
+mkdir -p /etc/systemd/timesyncd.conf.d
+cat > /etc/systemd/timesyncd.conf.d/ntp.conf << 'XPXE_EOF'
+[Time]
+NTP={{ servers }}
+XPXE_EOF
+systemctl enable --now systemd-timesyncd
+systemctl restart systemd-timesyncd
+{% else %}
+if ! dpkg-query -W -f='${Status}' chrony 2>/dev/null | grep -q 'install ok installed'; then
+  apt-get install -y chrony
+fi
+sed -i 's/^pool/# pool/' /etc/chrony/chrony.conf
+mkdir -p /etc/chrony/conf.d
+cat > /etc/chrony/conf.d/xpxe.conf << 'XPXE_EOF'
+{% for line in pools %}
+{{ line }}
+{% endfor %}
+XPXE_EOF
+systemctl enable chrony.service
+systemctl restart chrony.service
+{% endif %}

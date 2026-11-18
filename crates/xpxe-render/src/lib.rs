@@ -5,6 +5,7 @@ mod cmdline;
 mod disk;
 mod filters;
 mod hashpw;
+pub mod init;
 mod ipxe;
 mod md5sum;
 mod preseed;

@@ -1316,6 +1316,14 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "xpxe-agent"
 version = "0.1.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "xpxe-domain",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-assets"
@@ -1418,6 +1426,7 @@ version = "0.1.0"
 name = "xpxe-render"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "hex",
  "minijinja",
  "ring",

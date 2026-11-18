@@ -1,0 +1,16 @@
+cat > /etc/default/locale << 'XPXE_EOF'
+LANG="{{ lang }}"
+{% if lc_all %}
+LC_ALL="{{ lc_all }}"
+{% endif %}
+LANGUAGE="{{ language }}"
+XPXE_EOF
+touch /etc/locale.gen
+{% for entry in generate %}
+sed -i 's/^# *{{ entry.sed }}/{{ entry.sed }}/' /etc/locale.gen
+{% endfor %}
+{% for entry in generate %}
+grep -qxF {{ entry.line | sh_quote }} /etc/locale.gen || echo {{ entry.line | sh_quote }} >> /etc/locale.gen
+{% endfor %}
+locale-gen
+update-locale LANG={{ lang | sh_quote }}{% if lc_all %} LC_ALL={{ lc_all | sh_quote }}{% endif %} LANGUAGE={{ language | sh_quote }}

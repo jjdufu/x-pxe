@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "session": "sess01",
+  "events_url": "http://10.77.0.1:8080/p/agent001/events",
+  "log_path": "/var/log/xpxe-firstboot.log",
+  "final_retry_s": 600,
+  "modules": [
+    {
+      "id": "apt_sources",
+      "title": "APT 源整理",
+      "enabled": true,
+      "timeout_s": 900,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 apt_sources：APT 源整理\nset -euo pipefail\n\n# 经典 sources.list 与 *.list：注释掉 deb cdrom: 行；deb822 指向 cdrom 的 *.sources 改名禁用\nshopt -s nullglob\nfor f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do\n  [[ -f \"$f\" ]] || continue\n  sed -i -E 's/^[[:space:]]*(deb(-src)?[[:space:]]+cdrom:)/# \\1/' \"$f\"\ndone\nfor f in /etc/apt/sources.list.d/*.sources; do\n  if grep -qiE '^URIs:[[:space:]]*cdrom:' \"$f\"; then\n    mv -f \"$f\" \"${f}.disabled-cdrom\"\n  fi\ndone\nshopt -u nullglob\n# 只恢复已有的被注释 http(s) 行，不写入新地址\nshopt -s nullglob\nfor f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do\n  [[ -f \"$f\" ]] || continue\n  sed -i -E 's/^#[[:space:]]*(deb(-src)?[[:space:]]+https?:)/\\1/' \"$f\"\ndone\nshopt -u nullglob\nhas_net_src=0\nif grep -RqhE '^[[:space:]]*deb(-src)?[[:space:]]+https?:' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then\n  has_net_src=1\nfi\nshopt -s nullglob\nfor f in /etc/apt/sources.list.d/*.sources; do\n  if grep -qiE '^URIs:[[:space:]]*https?:' \"$f\"; then\n    has_net_src=1\n    break\n  fi\ndone\nshopt -u nullglob\nif [[ \"$has_net_src\" -eq 0 ]]; then\n  echo \"未检测到网络 APT 源，写入兜底 deb822 源\"\n  cat > /etc/apt/sources.list.d/debian.sources << 'XPXE_EOF'\nTypes: deb\nURIs: https://deb.debian.org/debian\nSuites: trixie trixie-updates trixie-backports\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\nTypes: deb\nURIs: https://deb.debian.org/debian-security\nSuites: trixie-security\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nXPXE_EOF\nfi\napt-get autoclean -y || true\napt-get update\n",
+      "sha256": "c42518030e577ffdb941f6da83b416aa495d5240896c45cfbce4422a4fad58bb"
+    },
+    {
+      "id": "packages",
+      "title": "软件包",
+      "enabled": true,
+      "timeout_s": 3600,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 packages：软件包\nset -euo pipefail\n\nexport DEBIAN_FRONTEND=noninteractive\napt-get install -y \\\n  'sudo' \\\n  'vim' \\\n  'git' \\\n  'curl' \\\n  'wget' \\\n  'rsync' \\\n  'jq' \\\n  'tree' \\\n  'tmux' \\\n  'btop' \\\n  'bash-completion' \\\n  'man-db' \\\n  'cron' \\\n  'dialog' \\\n  'dos2unix' \\\n  'zip' \\\n  'xz-utils' \\\n  'p7zip-full' \\\n  'psmisc' \\\n  'ncdu' \\\n  'ripgrep' \\\n  'rsyslog' \\\n  'iputils-ping' \\\n  'gpg' \\\n  'expect' \\\n  'dnsutils' \\\n  'net-tools' \\\n  'nload' \\\n  'iftop' \\\n  'tcptraceroute' \\\n  'fping' \\\n  'hping3' \\\n  'socat' \\\n  'sysstat' \\\n  'iotop' \\\n  'nmon' \\\n  'strace' \\\n  'powertop' \\\n  'xfsprogs' \\\n  'parted' \\\n  'nfs-common' \\\n  'rpcbind' \\\n  'ifenslave' \\\n  'libaio1t64' \\\n  'gcc' \\\n  'g++' \\\n  'make' \\\n  'pkg-config' \\\n  'libssl-dev' \\\n  'liblzma-dev' \\\n  'libncurses6' \\\n  'gh' \\\n  'python3-defusedxml' \\\n  'fail2ban' \\\n  'rkhunter' \\\n  'clamav' \\\n  'libpam-pwquality' \\\n  'libnspr4' \\\n  'libnss3' \\\n  'libatk1.0-0t64' \\\n  'libatk-bridge2.0-0t64' \\\n  'libatspi2.0-0t64' \\\n  'libcups2t64' \\\n  'libgbm1' \\\n  'libasound2t64' \\\n  'libxkbcommon0' \\\n  'libcairo2' \\\n  'libpango-1.0-0' \\\n  'libxcomposite1' \\\n  'libxdamage1' \\\n  'libxfixes3' \\\n  'libxrandr2' \\\n  'libvulkan1' \\\n  'xdg-utils' \\\n  'libreoffice-writer-nogui' \\\n  'poppler-utils' \\\n  'fonts-noto-cjk' \\\n  'fonts-wqy-microhei' \\\n  'fonts-liberation' \\\n  'fonts-noto-color-emoji'\n",
+      "sha256": "c7b7d0e207514ca128bd30a206aade9a5581cb9fb71d6abfaccd333ce724f100"
+    },
+    {
+      "id": "users_keys",
+      "title": "用户与公钥",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 users_keys：用户与公钥\nset -euo pipefail\n\nif grep -qE '^#? ?SHELL=' /etc/default/useradd; then\n  sed -i -E 's|^#? ?SHELL=.*|SHELL=/bin/bash|' /etc/default/useradd\nelse\n  echo 'SHELL=/bin/bash' >> /etc/default/useradd\nfi\ninstall -d -m 700 /root/.ssh\ntouch /root/.ssh/authorized_keys\ngrep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' /root/.ssh/authorized_keys || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' >> /root/.ssh/authorized_keys\nchmod 600 /root/.ssh/authorized_keys\n\n# ---- jwczjzl ----\nif ! id -u 'jwczjzl' &>/dev/null; then\n  useradd -m -s '/bin/bash' 'jwczjzl'\nfi\nusermod -s '/bin/bash' 'jwczjzl'\npasswd -l 'jwczjzl' >/dev/null\nusermod -aG 'sudo' 'jwczjzl'\nhome=\"$(getent passwd 'jwczjzl' | cut -d: -f6)\"\ninstall -d -m 700 \"${home}/.ssh\"\nif [[ ! -f \"${home}/.ssh/authorized_keys\" ]]; then\n  if [[ -f /root/.ssh/authorized_keys ]]; then\n    cp /root/.ssh/authorized_keys \"${home}/.ssh/authorized_keys\"\n  else\n    touch \"${home}/.ssh/authorized_keys\"\n  fi\nfi\ngrep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' \"${home}/.ssh/authorized_keys\" || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' >> \"${home}/.ssh/authorized_keys\"\nchmod 600 \"${home}/.ssh/authorized_keys\"\nchown -R 'jwczjzl': \"${home}/.ssh\"\nloginctl enable-linger 'jwczjzl'\n",
+      "sha256": "61470aea4535f96c8633bb01016e17c169f2caec301145857d14faa1dca5b068"
+    },
+    {
+      "id": "timezone",
+      "title": "时区",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 timezone：时区\nset -euo pipefail\n\ntimedatectl set-timezone 'Asia/Shanghai'\ntimedatectl set-local-rtc 0\necho 'Asia/Shanghai' > /etc/timezone\nln -sf /usr/share/zoneinfo/'Asia/Shanghai' /etc/localtime\n",
+      "sha256": "47c09253cd0ac2226f29ecb9fe504971bf7724eeb39c748fd2f89af6ca62fec1"
+    },
+    {
+      "id": "time_sync",
+      "title": "时间同步",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 time_sync：时间同步\nset -euo pipefail\n\nexport DEBIAN_FRONTEND=noninteractive\nif ! dpkg-query -W -f='${Status}' systemd-timesyncd 2>/dev/null | grep -q 'install ok installed'; then\n  apt-get install -y systemd-timesyncd\nfi\nmkdir -p /etc/systemd/timesyncd.conf.d\ncat > /etc/systemd/timesyncd.conf.d/ntp.conf << 'XPXE_EOF'\n[Time]\nNTP=ntp.aliyun.com\nXPXE_EOF\nsystemctl enable --now systemd-timesyncd\nsystemctl restart systemd-timesyncd\n",
+      "sha256": "9e4341a02d6ac6e46e9c8931317778d916a3f3d02268c2c66190e1b7a29713da"
+    },
+    {
+      "id": "locale",
+      "title": "语言环境",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 locale：语言环境\nset -euo pipefail\n\ncat > /etc/default/locale << 'XPXE_EOF'\nLANG=\"en_US.UTF-8\"\nLC_ALL=\"en_US.UTF-8\"\nLANGUAGE=\"en_US.UTF-8\"\nXPXE_EOF\ntouch /etc/locale.gen\nsed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen\nsed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen\ngrep -qxF 'zh_CN.UTF-8 UTF-8' /etc/locale.gen || echo 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen\ngrep -qxF 'en_US.UTF-8 UTF-8' /etc/locale.gen || echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen\nlocale-gen\nupdate-locale LANG='en_US.UTF-8' LC_ALL='en_US.UTF-8' LANGUAGE='en_US.UTF-8'\n",
+      "sha256": "d7901f4c0c1595b76601331487e673e342b8440d78b74096c2ddc2d9e9ec1517"
+    },
+    {
+      "id": "systemd_manager",
+      "title": "systemd 启停超时",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 systemd_manager：systemd 启停超时\nset -euo pipefail\n\nmkdir -p /etc/systemd/system.conf.d\ncat > /etc/systemd/system.conf.d/timeout.conf << 'XPXE_EOF'\n[Manager]\nDefaultTimeoutStartSec=30s\nDefaultTimeoutStopSec=30s\nXPXE_EOF\n",
+      "sha256": "87d888dd7589527b9b1f8be68ba3f17d8fef476435d616b15eac13359bdea547"
+    },
+    {
+      "id": "ssh_generator_fix",
+      "title": "ssh generator 刷屏修复",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 ssh_generator_fix：ssh generator 刷屏修复\nset -euo pipefail\n\nmkdir -p /etc/systemd/system-generators\nln -sfn /dev/null /etc/systemd/system-generators/systemd-ssh-generator\nsystemctl mask 'sshd-unix-local.socket' 2>/dev/null || true\nsystemctl mask 'sshd-vsock.socket' 2>/dev/null || true\n",
+      "sha256": "ba72fc057288834e55ec9fd1be466dda4d78b3949c6a5898d1a39866bc18041e"
+    },
+    {
+      "id": "sshd",
+      "title": "SSH 服务配置",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 sshd：SSH 服务配置\nset -euo pipefail\n\nmkdir -p /etc/ssh/sshd_config.d\ncat > /etc/ssh/sshd_config.d/jwczjzl.conf << 'XPXE_EOF'\nPermitRootLogin no\nX11Forwarding no\nX11UseLocalhost yes\nAllowTcpForwarding yes\nAllowAgentForwarding yes\nIgnoreRhosts yes\nGSSAPIAuthentication no\nUseDNS no\nCompression no\nTCPKeepAlive yes\nPasswordAuthentication no\nBanner /etc/issue\nXPXE_EOF\nsed -i 's/^#\\?X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config 2>/dev/null || true\nif ! grep -qiE '^\\s*Banner\\s+' /etc/ssh/sshd_config; then\n  echo 'Banner /etc/issue' >> /etc/ssh/sshd_config\nelse\n  sed -ri 's#^\\s*(banner|Banner)\\s+.*#Banner /etc/issue#' /etc/ssh/sshd_config\nfi\nsshd -t\nsystemctl reload ssh 2>/dev/null || systemctl restart ssh\n",
+      "sha256": "e4709f6462cf537340a95851d400f998c987cac5a68be6d437034f9cc577041f"
+    },
+    {
+      "id": "sudoers",
+      "title": "sudoers",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 sudoers：sudoers\nset -euo pipefail\n\ncp -a /etc/sudoers /etc/sudoers.ori 2>/dev/null || true\ntmp=\"$(mktemp)\"\ntrap 'rm -f \"${tmp}\"' EXIT\ncat > \"${tmp}\" << 'XPXE_EOF'\n# 环境与审计（模块化；不替换整份 /etc/sudoers）\nDefaults    env_reset\nDefaults    env_keep += \"HOME\"\nDefaults    env_delete = \"HTTP_PROXY HTTPS_PROXY\"\nDefaults    passwd_tries=3\nDefaults    timestamp_timeout=10\nDefaults    secure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"\nDefaults    use_pty\nDefaults    logfile=\"/var/log/sudo.log\"\n\n# 常用运维命令免密；完整管理仍走 Debian 默认 %sudo ALL=(ALL:ALL) ALL（需密码）\nCmnd_Alias SYSADMIN = /usr/sbin/service, /usr/bin/systemctl, /usr/bin/apt-get, /usr/bin/apt, /usr/sbin/reboot, /usr/sbin/shutdown\n%sudo   ALL=(ALL:ALL) NOPASSWD: SYSADMIN\njwczjzl ALL=(ALL:ALL) ALL\nXPXE_EOF\nvisudo -cf \"${tmp}\"\ninstall -m 0440 -o root -g root \"${tmp}\" /etc/sudoers.d/jwczjzl\nvisudo -cf /etc/sudoers.d/jwczjzl\nvisudo -cf /etc/sudoers\ncat > /etc/logrotate.d/sudo << 'XPXE_EOF'\n/var/log/sudo.log {\n    weekly\n    rotate 4\n    compress\n    missingok\n    create 640 root root\n}\nXPXE_EOF\n",
+      "sha256": "e496ef7d776a8da98c39d22b1517db0d64197006ccdcf179d75b2b16b000311e"
+    },
+    {
+      "id": "shell_profile",
+      "title": "Shell 环境",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 shell_profile：Shell 环境\nset -euo pipefail\n\ncat > /etc/profile.d/zz-aliases.sh << 'XPXE_EOF'\nunset MAILCHECK\n\nif [ -x /usr/bin/dircolors ]; then\n    test -r ~/.dircolors && eval \"$(dircolors -b ~/.dircolors)\" || eval \"$(dircolors -b)\"\n    alias ls='ls --color=auto'\n    alias grep='grep --color=auto'\n    alias fgrep='fgrep --color=auto'\n    alias egrep='egrep --color=auto'\nfi\nalias ll='ls -alF'\nalias la='ls -A'\nalias l='ls -CF'\n\nexport PATH=\"$PATH:/usr/local/sbin\"\nXPXE_EOF\nchmod 644 /etc/profile.d/zz-aliases.sh\ncat > /etc/profile.d/ssh-agent.sh << 'XPXE_EOF'\nif [ -z \"$SSH_AGENT_PID\" ]; then\n    eval \"$(ssh-agent -s)\" > /dev/null\nfi\nssh-add ~/.ssh/id_ed25519 2>/dev/null || true\nXPXE_EOF\nchmod 644 /etc/profile.d/ssh-agent.sh\n",
+      "sha256": "d5af48e16e931e008509a91725a15047ef8121c018a99c15921e30980ca8d7d7"
+    },
+    {
+      "id": "vimrc",
+      "title": "vimrc",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 vimrc：vimrc\nset -euo pipefail\n\nhome=\"$(getent passwd 'root' | cut -d: -f6)\"\ncat > \"${home}/.vimrc\" << 'XPXE_VIMRC'\nlet mapleader = ','\nlet g:mapleader = ','\n\nsyntax on\n\nset history=2000\n\nfiletype on\nfiletype plugin on\nfiletype indent on\n\nset nocompatible\nset autoread\nset shortmess=atI\n\nset magic\nset title\nset nobackup\n\nset novisualbell\nset noerrorbells\nset visualbell t_vb=\nset t_vb=\nset tm=500\n\nset cursorcolumn\nset cursorline\n\nset scrolloff=7\n\nset ruler\nset number\nset nowrap\nset showcmd\nset showmode\nset showmatch\nset matchtime=2\n\nset hlsearch\nset incsearch\nset ignorecase\nset smartcase\n\nset expandtab\nset smarttab\nset shiftround\n\nset autoindent smartindent shiftround\nset shiftwidth=4\nset tabstop=4\nset softtabstop=4\n\nset foldenable\nset foldmethod=indent\nset foldlevel=99\nlet g:FoldMethod = 0\nmap <leader>zz :call ToggleFold()<cr>\nfun! ToggleFold()\n    if g:FoldMethod == 0\n        exe \"normal! zM\"\n        let g:FoldMethod = 1\n    else\n        exe \"normal! zR\"\n        let g:FoldMethod = 0\n    endif\nendfun\n\nset encoding=utf-8\nset fileencodings=ucs-bom,utf-8,cp936,gb18030,big5,euc-jp,euc-kr,latin1\nset termencoding=utf-8\nset ffs=unix,dos,mac\nset formatoptions+=m\nset formatoptions+=B\n\nset selection=inclusive\nset selectmode=mouse,key\n\nset completeopt=longest,menu\nset wildmenu\nset wildmode=longest,list,full\nset wildignore=*.o,*~,*.pyc,*.class\n\nset backspace=indent,eol,start\nset whichwrap+=<,>,h,l\n\nif has(\"autocmd\")\n  au BufReadPost * if line(\"'\\\"\") > 1 && line(\"'\\\"\") <= line(\"$\") | exe \"normal! g'\\\"\" | endif\nendif\n\nset background=dark\ncolorscheme desert\n\nhi! link SignColumn   LineNr\nhi! link ShowMarksHLl DiffAdd\nhi! link ShowMarksHLu DiffChange\n\nset statusline=%<%f\\ %h%m%r%=%k[%{(&fenc==\\\"\\\")?&enc:&fenc}%{(&bomb?\\\",BOM\\\":\\\"\\\")}]\\ %-14.(%l,%c%V%)\\ %P\nset laststatus=2\n\nautocmd FileType python set tabstop=4 shiftwidth=4 expandtab ai\nautocmd FileType ruby set tabstop=2 shiftwidth=2 softtabstop=2 expandtab ai\nautocmd BufRead,BufNew *.md,*.mkd,*.markdown  set filetype=markdown.mkd\n\nautocmd BufNewFile *.sh,*.py exec \":call AutoSetFileHead()\"\nfunction! AutoSetFileHead()\n    if &filetype == 'sh'\n        call setline(1, \"\\#!/bin/bash\")\n    endif\n    if &filetype == 'python'\n        call setline(1, \"\\#!/usr/bin/env python\")\n        call append(1, \"\\# encoding: utf-8\")\n    endif\n    normal G\n    normal o\n    normal o\nendfunc\n\nautocmd FileType c,cpp,java,go,php,javascript,puppet,python,rust,twig,xml,yml,perl autocmd BufWritePre <buffer> :call <SID>StripTrailingWhitespaces()\nfun! <SID>StripTrailingWhitespaces()\n    let l = line(\".\")\n    let c = col(\".\")\n    %s/\\s\\+$//e\n    call cursor(l, c)\nendfun\n\nnnoremap k gk\nnnoremap gk k\nnnoremap j gj\nnnoremap gj j\n\nmap <C-j> <C-W>j\nmap <C-k> <C-W>k\nmap <C-h> <C-W>h\nmap <C-l> <C-W>l\n\nnnoremap <F2> :set nu! nu?<CR>\nnnoremap <F3> :set list! list?<CR>\nnnoremap <F4> :set wrap! wrap?<CR>\nset pastetoggle=<F5>\nau InsertLeave * set nopaste\nnnoremap <F6> :exec exists('syntax_on') ? 'syn off' : 'syn on'<CR>\n\ninoremap kj <Esc>\n\nnnoremap <leader>q :q<CR>\nnnoremap <leader>w :w<CR>\n\nmap <Leader>sa ggVG\n\nnnoremap U <C-r>\n\nnnoremap ' `\nnnoremap ` '\n\nnnoremap <silent> n nzz\nnnoremap <silent> N Nzz\nnnoremap <silent> * *zz\nnnoremap <silent> # #zz\nnnoremap <silent> g* g*zz\n\nnoremap <silent><leader>/ :nohls<CR>\n\nvnoremap < <gv\nvnoremap > >gv\n\nmap Y y$\n\nnnoremap ; :\n\nnnoremap H ^\nnnoremap L $\n\ncmap w!! w !sudo tee >/dev/null %\n\ncnoremap <C-j> <t_kd>\ncnoremap <C-k> <t_ku>\ncnoremap <C-a> <Home>\ncnoremap <C-e> <End>\nXPXE_VIMRC\nchown 'root': \"${home}/.vimrc\"\nhome=\"$(getent passwd 'jwczjzl' | cut -d: -f6)\"\ncat > \"${home}/.vimrc\" << 'XPXE_VIMRC'\nlet mapleader = ','\nlet g:mapleader = ','\n\nsyntax on\n\nset history=2000\n\nfiletype on\nfiletype plugin on\nfiletype indent on\n\nset nocompatible\nset autoread\nset shortmess=atI\n\nset magic\nset title\nset nobackup\n\nset novisualbell\nset noerrorbells\nset visualbell t_vb=\nset t_vb=\nset tm=500\n\nset cursorcolumn\nset cursorline\n\nset scrolloff=7\n\nset ruler\nset number\nset nowrap\nset showcmd\nset showmode\nset showmatch\nset matchtime=2\n\nset hlsearch\nset incsearch\nset ignorecase\nset smartcase\n\nset expandtab\nset smarttab\nset shiftround\n\nset autoindent smartindent shiftround\nset shiftwidth=4\nset tabstop=4\nset softtabstop=4\n\nset foldenable\nset foldmethod=indent\nset foldlevel=99\nlet g:FoldMethod = 0\nmap <leader>zz :call ToggleFold()<cr>\nfun! ToggleFold()\n    if g:FoldMethod == 0\n        exe \"normal! zM\"\n        let g:FoldMethod = 1\n    else\n        exe \"normal! zR\"\n        let g:FoldMethod = 0\n    endif\nendfun\n\nset encoding=utf-8\nset fileencodings=ucs-bom,utf-8,cp936,gb18030,big5,euc-jp,euc-kr,latin1\nset termencoding=utf-8\nset ffs=unix,dos,mac\nset formatoptions+=m\nset formatoptions+=B\n\nset selection=inclusive\nset selectmode=mouse,key\n\nset completeopt=longest,menu\nset wildmenu\nset wildmode=longest,list,full\nset wildignore=*.o,*~,*.pyc,*.class\n\nset backspace=indent,eol,start\nset whichwrap+=<,>,h,l\n\nif has(\"autocmd\")\n  au BufReadPost * if line(\"'\\\"\") > 1 && line(\"'\\\"\") <= line(\"$\") | exe \"normal! g'\\\"\" | endif\nendif\n\nset background=dark\ncolorscheme desert\n\nhi! link SignColumn   LineNr\nhi! link ShowMarksHLl DiffAdd\nhi! link ShowMarksHLu DiffChange\n\nset statusline=%<%f\\ %h%m%r%=%k[%{(&fenc==\\\"\\\")?&enc:&fenc}%{(&bomb?\\\",BOM\\\":\\\"\\\")}]\\ %-14.(%l,%c%V%)\\ %P\nset laststatus=2\n\nautocmd FileType python set tabstop=4 shiftwidth=4 expandtab ai\nautocmd FileType ruby set tabstop=2 shiftwidth=2 softtabstop=2 expandtab ai\nautocmd BufRead,BufNew *.md,*.mkd,*.markdown  set filetype=markdown.mkd\n\nautocmd BufNewFile *.sh,*.py exec \":call AutoSetFileHead()\"\nfunction! AutoSetFileHead()\n    if &filetype == 'sh'\n        call setline(1, \"\\#!/bin/bash\")\n    endif\n    if &filetype == 'python'\n        call setline(1, \"\\#!/usr/bin/env python\")\n        call append(1, \"\\# encoding: utf-8\")\n    endif\n    normal G\n    normal o\n    normal o\nendfunc\n\nautocmd FileType c,cpp,java,go,php,javascript,puppet,python,rust,twig,xml,yml,perl autocmd BufWritePre <buffer> :call <SID>StripTrailingWhitespaces()\nfun! <SID>StripTrailingWhitespaces()\n    let l = line(\".\")\n    let c = col(\".\")\n    %s/\\s\\+$//e\n    call cursor(l, c)\nendfun\n\nnnoremap k gk\nnnoremap gk k\nnnoremap j gj\nnnoremap gj j\n\nmap <C-j> <C-W>j\nmap <C-k> <C-W>k\nmap <C-h> <C-W>h\nmap <C-l> <C-W>l\n\nnnoremap <F2> :set nu! nu?<CR>\nnnoremap <F3> :set list! list?<CR>\nnnoremap <F4> :set wrap! wrap?<CR>\nset pastetoggle=<F5>\nau InsertLeave * set nopaste\nnnoremap <F6> :exec exists('syntax_on') ? 'syn off' : 'syn on'<CR>\n\ninoremap kj <Esc>\n\nnnoremap <leader>q :q<CR>\nnnoremap <leader>w :w<CR>\n\nmap <Leader>sa ggVG\n\nnnoremap U <C-r>\n\nnnoremap ' `\nnnoremap ` '\n\nnnoremap <silent> n nzz\nnnoremap <silent> N Nzz\nnnoremap <silent> * *zz\nnnoremap <silent> # #zz\nnnoremap <silent> g* g*zz\n\nnoremap <silent><leader>/ :nohls<CR>\n\nvnoremap < <gv\nvnoremap > >gv\n\nmap Y y$\n\nnnoremap ; :\n\nnnoremap H ^\nnnoremap L $\n\ncmap w!! w !sudo tee >/dev/null %\n\ncnoremap <C-j> <t_kd>\ncnoremap <C-k> <t_ku>\ncnoremap <C-a> <Home>\ncnoremap <C-e> <End>\nXPXE_VIMRC\nchown 'jwczjzl': \"${home}/.vimrc\"\n",
+      "sha256": "5249fb46f378c7e20611a952a4a3c9ea0a0df3e627dd5faba78dc17e862a16fd"
+    },
+    {
+      "id": "services",
+      "title": "系统服务",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 services：系统服务\nset -euo pipefail\n\nsystemctl disable --now apt-daily.timer apt-daily-upgrade.timer\nsystemctl unmask 'ssh' 2>/dev/null || true\nsystemctl enable --now 'ssh'\nsystemctl mask 'cryptdisks-early.service'\nsystemctl mask 'cryptdisks.service'\nsystemctl mask 'x11-common.service'\nsystemctl mask 'nftables.service'\nsystemctl daemon-reload\nupdate-alternatives --set editor '/usr/bin/vim.basic'\n",
+      "sha256": "2d642d36d4db736ee87da84ced7cc52b3c8bb240791d30500b7397eb1e662001"
+    },
+    {
+      "id": "motd",
+      "title": "登录提示",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 motd：登录提示\nset -euo pipefail\n\n: > /etc/issue\n: > /etc/issue.net\n: > /etc/motd\nchmod -x /etc/update-motd.d/* 2>/dev/null || true\ncat > /etc/update-motd.d/00-custom-header << 'XPXE_EOF'\n#!/bin/bash\n\n# Get load averages\nLOAD1=$(awk '{print $1}' /proc/loadavg)\nLOAD5=$(awk '{print $2}' /proc/loadavg)\nLOAD15=$(awk '{print $3}' /proc/loadavg)\n# Get free memory\nMEMORY_USED=$(free -t -m | awk '/Mem/{print $3}')\nMEMORY_ALL=$(free -t -m | awk '/Mem/{print $2}')\nMEMORY_PERCENTAGE=$(free | awk '/Mem/{printf(\"%.2f%%\\n\", $3/$2*100)}')\n# Get system uptime\nUPTIME=$(awk '{print int($1)}' /proc/uptime)\nUPTIME_DAYS=$((UPTIME/60/60/24))\nUPTIME_HOURS=$((UPTIME/60/60%24))\nUPTIME_MINS=$((UPTIME/60%60))\nUPTIME_SECS=$((UPTIME%60))\n# Get processes\nPROCESS=$(ps -eo user=|sort|uniq -c | awk '{print $2 \" \" $1 }')\nPROCESS_ALL=$(echo \"${PROCESS}\" | awk '{print $2}' | awk '{SUM += $1} END {print SUM}')\nPROCESS_ROOT=$(echo \"${PROCESS}\" | awk '$1==\"root\"{print $2}')\nPROCESS_USER=$(echo \"${PROCESS}\" | awk '$1!=\"root\"{SUM += $2} END {print SUM+0}')\n# Get processors\nPROCESSOR_NAME=$(grep \"model name\" /proc/cpuinfo | cut -d ' ' -f3- | awk '{print $0}' | head -1)\nPROCESSOR_NAME=${PROCESSOR_NAME:-$(uname -m)}\nPROCESSOR_COUNT=$(grep -c '^processor' /proc/cpuinfo)\n# Colors\nG=\"\\033[01;32m\"\nR=\"\\033[01;31m\"\nD=\"\\033[39m\\033[2m\"\nN=\"\\033[0m\"\necho -e \"${G}Login success.${N} Please execute the commands and operation data carefully.\"\necho -e \"You are logged in to ${G}$(uname -n)${N}, Login time is $(/bin/date \"+%Y-%m-%d %H:%M:%S\").\\n\"\necho -e \"[System Info]\\n\"\necho -e \"  SYSTEM    : $(head -1 /etc/os-release | awk -F'[=\"]+' '{print $2}')\"\necho -e \"  KERNEL    : $(uname -sr)\"\necho -e \"  UPTIME    : ${UPTIME_DAYS} days ${UPTIME_HOURS} hours ${UPTIME_MINS} minutes ${UPTIME_SECS} seconds\"\necho -e \"  CPU       : ${PROCESSOR_NAME} (${G}${PROCESSOR_COUNT}${N} vCPU)\\n\"\necho -e \"  MEMORY    : ${MEMORY_USED} MB / ${MEMORY_ALL} MB (${G}${MEMORY_PERCENTAGE}${N} Used)\"\necho -e \"  LOAD AVG  : ${G}${LOAD1}${N} (1m), ${G}${LOAD5}${N} (5m), ${G}${LOAD15}${N} (15m)\"\necho -e \"  PROCESSES : ${G}${PROCESS_ROOT}${N} (root), ${G}${PROCESS_USER}${N} (user), ${G}${PROCESS_ALL}${N} (total)\"\necho -e \"  USERS     : ${G}$(users | wc -w)${N} users logged in\"\necho -e \"  BASH      : ${G}${BASH_VERSION}${N}\\n\"\necho -e \"[Disk Usage]\\n\"\nmapfile -t DFH < <(df -h -x zfs -x squashfs -x tmpfs -x devtmpfs -x overlay --output=target,pcent,size,used | tail -n+2)\nfor LINE in \"${DFH[@]}\"; do\n    DISK_USAGE=$(echo \"${LINE}\" | awk '{print $2}' | sed 's/%//')\n    [[ \"${DISK_USAGE}\" =~ ^[0-9]+$ ]] || DISK_USAGE=0\n    USAGE_WIDTH=$((DISK_USAGE*60/100))\n    if [ \"${DISK_USAGE}\" -gt 90 ]; then\n        COLOR=\"${R}\"\n    else\n        COLOR=\"${G}\"\n    fi\n    BAR=\"[${COLOR}\"\n    for ((i=0; i<USAGE_WIDTH; i++)); do\n        BAR+=\"=\"\n    done\n    BAR+=${D}\n    for ((i=USAGE_WIDTH; i<60; i++)); do\n        BAR+=\"=\"\n    done\n    BAR+=\"${N}]\"\n    echo \"${LINE}\" | awk '{ printf(\"Mounted: %-32s %s / %s (%s Used)\\n\", $1, $4, $3, $2); }' | sed -e 's/^/  /'\n    echo -e \"${BAR}\" | sed -e 's/^/  /'\ndone\necho\nXPXE_EOF\nchmod +x /etc/update-motd.d/00-custom-header\n",
+      "sha256": "fb95197fa35b86fd1976b569396a44f54115cdeac348889d07ef39aee23bb76d"
+    },
+    {
+      "id": "sysctl",
+      "title": "内核参数",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 sysctl：内核参数\nset -euo pipefail\n\ncat > /etc/sysctl.d/99-fleet-netvm.conf << 'XPXE_EOF'\n\n# ------ 转发 / IPv6 ------\n# K8s 节点需要转发；纯 nginx 开着也无妨\nnet.ipv4.ip_forward = 1\n# 确认集群无依赖 IPv6 后再禁用；若有双栈 Service 不要用这三项\nnet.ipv6.conf.all.disable_ipv6 = 1\nnet.ipv6.conf.default.disable_ipv6 = 1\nnet.ipv6.conf.lo.disable_ipv6 = 1\n\n# ------ TCP ------\nnet.ipv4.tcp_syncookies = 1\nnet.ipv4.tcp_tw_reuse = 1\nnet.ipv4.tcp_fin_timeout = 30\nnet.ipv4.tcp_syn_retries = 5\nnet.ipv4.tcp_synack_retries = 5\nnet.ipv4.tcp_fastopen = 3\nnet.ipv4.tcp_slow_start_after_idle = 0\n\n# 空闲 10 分钟后探活；配合 intvl/probes，死连接收得比 7200 快（适合 K8s/反代）\nnet.ipv4.tcp_keepalive_time = 600\nnet.ipv4.tcp_keepalive_intvl = 30\nnet.ipv4.tcp_keepalive_probes = 5\n\n# 缓冲：default 保持克制，max 允许大流量抬升（勿再把 default 调到数 MB）\nnet.ipv4.tcp_rmem = 4096 87380 12582912\nnet.ipv4.tcp_wmem = 4096 16384 12582912\nnet.core.rmem_default = 212992\nnet.core.wmem_default = 16384\nnet.core.rmem_max = 12582912\nnet.core.wmem_max = 12582912\n\nnet.ipv4.tcp_max_orphans = 262144\nnet.ipv4.tcp_max_syn_backlog = 32768\nnet.ipv4.tcp_max_tw_buckets = 1048576\nnet.ipv4.ip_local_port_range = 10000 65535\n\n# 拥塞：维持发行版常见组合即可；公网入口若要试 BBR，再单独开下面两行并回归测试\n# net.ipv4.tcp_congestion_control = bbr\n# net.core.default_qdisc = fq\n# 当前建议保持（若系统已是 cubic + fq_codel，不必强改）\n# net.ipv4.tcp_congestion_control = cubic\n# net.core.default_qdisc = fq_codel\n\n# ------ 队列 ------\nnet.core.netdev_max_backlog = 32768\nnet.core.somaxconn = 32768\n\n# ------ 内存 / VM（ES/Java/K8s 友好）------\nvm.max_map_count = 262144\nvm.dirty_background_ratio = 5\nvm.dirty_ratio = 10\nvm.overcommit_memory = 1\nvm.swappiness = 10\nvm.min_free_kbytes = 65536\nvm.vfs_cache_pressure = 50\n\n# ------ 文件监控（kubelet / 同步类）------\nfs.fanotify.max_queued_events = 65536\nfs.inotify.max_user_watches = 524288\n\n# ------ 安全（与 Calico/K8s 兼容）------\nnet.ipv4.conf.all.accept_redirects = 0\nnet.ipv4.conf.default.accept_redirects = 0\nnet.ipv4.conf.all.secure_redirects = 0\nnet.ipv4.conf.default.secure_redirects = 0\n# 严格 rp_filter=1 易在覆盖网络/不对称路径上丢包；全员用 0（或改成 2 loose）\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.default.rp_filter = 0\n\nXPXE_EOF\nif ! sysctl --system; then\n  echo \"xpxe-warning: sysctl --system 有失败项（不中断）\" >&2\nfi\n",
+      "sha256": "d00c5837b64456e70a38e9e2e2a288d5a350b91c6d9c55ee286155637627af1d"
+    },
+    {
+      "id": "limits",
+      "title": "资源限制",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 limits：资源限制\nset -euo pipefail\n\ncat > /etc/security/limits.d/90-nofile.conf << 'XPXE_EOF'\n* soft nofile 655350\n* hard nofile 655350\n* soft nproc  unlimited\n* hard nproc  unlimited\n* soft core   unlimited\n* hard core   unlimited\n# End of file\nXPXE_EOF\n",
+      "sha256": "e1f6e9f5ce63442e56a6497e1f59236d198fa60da434e05c4df1d4788162bc39"
+    },
+    {
+      "id": "history_audit",
+      "title": "命令历史审计",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 history_audit：命令历史审计\nset -euo pipefail\n\nmkdir -vp '/var/log/.history'\nchmod 1777 '/var/log/.history'\ncat > /etc/profile.d/history-record.sh << 'XPXE_EOF'\n# 审计：每次登录独立 HISTFILE；HISTSIZE/HISTFILESIZE 统一为大容量\nexport HISTSIZE=100000\nexport HISTFILESIZE=100000\n\nLOGTIME=$(date +%Y%m%d-%H-%M-%S)\nexport HISTFILE=\"/var/log/.history/${USER}.${LOGTIME}.history\"\nif [ ! -f \"${HISTFILE}\" ]; then\n  touch \"${HISTFILE}\"\nfi\nchmod 600 \"${HISTFILE}\"\nchattr +a \"${HISTFILE}\" 2>/dev/null || true\n\nHISTTIMEFORMAT=\"%F_%T $(whoami)#$(who -u am i 2>/dev/null| awk '{print $NF}'|sed -e 's/[()]//g'):\"\nexport HISTTIMEFORMAT\nXPXE_EOF\nchmod 644 /etc/profile.d/history-record.sh\n",
+      "sha256": "bed9fb98a627c193c2edfea159683ff65f4ef09047d87ab914b0c996cfdf955e"
+    },
+    {
+      "id": "fstrim",
+      "title": "fstrim",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 fstrim：fstrim\nset -euo pipefail\n\necho \"fstrim.timer 保持系统默认\"\n",
+      "sha256": "7de0b4d24277c4bb7a94dcfcb8a5225e6bc57783b04cc8424759ca60ebfb4ee3"
+    },
+    {
+      "id": "custom_snippet",
+      "title": "自定义片段",
+      "enabled": false,
+      "timeout_s": 900,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "cleanup",
+      "title": "清理",
+      "enabled": true,
+      "timeout_s": 900,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 cleanup：清理\nset -euo pipefail\n\nkeep='/var/log/xpxe-firstboot.log'\nfind / -maxdepth 3 -name hosts.equiv -print0 2>/dev/null | xargs -0r rm -rf\nfind / -maxdepth 3 -name .netrc -print0 2>/dev/null | xargs -0r rm -rf\nfind / -maxdepth 3 -name .rhosts -print0 2>/dev/null | xargs -0r rm -rf\napt-get clean\napt-get autoclean -y\nDEBIAN_FRONTEND=noninteractive apt-get autoremove -y\nfind /var/log/apt/ -type f -delete 2>/dev/null || true\nfind /var/log \\( -name \"vmware-*.*.log\" -o -name \"*.log-*\" -o -name \"*.gz\" -o -name \"*log.*\" \\) ! -path \"${keep}\" 2>/dev/null | while read -r f; do rm -f \"$f\"; done || true\nfind /var/log -type f -name \"*log\" ! -path \"${keep}\" -exec truncate -s 0 {} \\; 2>/dev/null || true\nsync\nfind /tmp -mindepth 1 -delete 2>/dev/null || true\n",
+      "sha256": "aeba2ce5bd138971ce2a10f680fe00f40515f90000fb2ecf79b73a7b5525d363"
+    }
+  ],
+  "finalize": {
+    "reboot": true
+  }
+}

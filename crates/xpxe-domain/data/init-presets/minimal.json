@@ -1,0 +1,79 @@
+{
+  "name": "minimal",
+  "modules": {
+    "systemd_manager": {
+      "enabled": false
+    },
+    "ssh_generator_fix": {
+      "enabled": false
+    },
+    "sudoers": {
+      "enabled": false
+    },
+    "shell_profile": {
+      "enabled": false
+    },
+    "vimrc": {
+      "enabled": false
+    },
+    "services": {
+      "enabled": false
+    },
+    "motd": {
+      "enabled": false
+    },
+    "sysctl": {
+      "enabled": false
+    },
+    "limits": {
+      "enabled": false
+    },
+    "history_audit": {
+      "enabled": false
+    },
+    "fstrim": {
+      "enabled": false
+    },
+    "custom_snippet": {
+      "enabled": false
+    },
+    "cleanup": {
+      "enabled": false
+    },
+    "packages": {
+      "settings": {
+        "groups": {
+          "base_ops": true,
+          "net_diag": false,
+          "perf": false,
+          "storage": false,
+          "build": false,
+          "security": false,
+          "headless": false,
+          "docs_fonts": false
+        }
+      }
+    },
+    "users_keys": {
+      "settings": {
+        "root_authorized_keys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost"
+        ],
+        "users": [
+          {
+            "name": "jwczjzl",
+            "groups": [
+              "sudo"
+            ],
+            "authorized_keys": [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "finalize": {
+    "reboot": true
+  }
+}

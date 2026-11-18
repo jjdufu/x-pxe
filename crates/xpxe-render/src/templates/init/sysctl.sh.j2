@@ -1,0 +1,8 @@
+cat > /etc/sysctl.d/{{ file_name }} << 'XPXE_EOF'
+{{ content }}
+XPXE_EOF
+{% if apply_now %}
+if ! sysctl --system; then
+  echo "xpxe-warning: sysctl --system 有失败项（不中断）" >&2
+fi
+{% endif %}

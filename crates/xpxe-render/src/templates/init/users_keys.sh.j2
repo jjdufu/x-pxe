@@ -1,0 +1,50 @@
+if grep -qE '^#? ?SHELL=' /etc/default/useradd; then
+  sed -i -E 's|^#? ?SHELL=.*|SHELL={{ default_shell }}|' /etc/default/useradd
+else
+  echo 'SHELL={{ default_shell }}' >> /etc/default/useradd
+fi
+{% if root_keys %}
+install -d -m 700 /root/.ssh
+touch /root/.ssh/authorized_keys
+{% for key in root_keys %}
+grep -qxF {{ key | sh_quote }} /root/.ssh/authorized_keys || echo {{ key | sh_quote }} >> /root/.ssh/authorized_keys
+{% endfor %}
+chmod 600 /root/.ssh/authorized_keys
+{% endif %}
+{% for user in users %}
+
+# ---- {{ user.name }} ----
+if ! id -u {{ user.name | sh_quote }} &>/dev/null; then
+  useradd -m -s {{ user.shell | sh_quote }} {{ user.name | sh_quote }}
+fi
+usermod -s {{ user.shell | sh_quote }} {{ user.name | sh_quote }}
+{% if user.hash %}
+usermod -p {{ user.hash | sh_quote }} {{ user.name | sh_quote }}
+{% else %}
+passwd -l {{ user.name | sh_quote }} >/dev/null
+{% endif %}
+{% if user.groups %}
+usermod -aG {{ user.groups | sh_quote }} {{ user.name | sh_quote }}
+{% endif %}
+home="$(getent passwd {{ user.name | sh_quote }} | cut -d: -f6)"
+install -d -m 700 "${home}/.ssh"
+if [[ ! -f "${home}/.ssh/authorized_keys" ]]; then
+{% if user.copy_root_keys %}
+  if [[ -f /root/.ssh/authorized_keys ]]; then
+    cp /root/.ssh/authorized_keys "${home}/.ssh/authorized_keys"
+  else
+    touch "${home}/.ssh/authorized_keys"
+  fi
+{% else %}
+  touch "${home}/.ssh/authorized_keys"
+{% endif %}
+fi
+{% for key in user.keys %}
+grep -qxF {{ key | sh_quote }} "${home}/.ssh/authorized_keys" || echo {{ key | sh_quote }} >> "${home}/.ssh/authorized_keys"
+{% endfor %}
+chmod 600 "${home}/.ssh/authorized_keys"
+chown -R {{ user.name | sh_quote }}: "${home}/.ssh"
+{% if user.linger %}
+loginctl enable-linger {{ user.name | sh_quote }}
+{% endif %}
+{% endfor %}

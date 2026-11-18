@@ -1,0 +1,7 @@
+{% for user in targets %}
+home="$(getent passwd {{ user | sh_quote }} | cut -d: -f6)"
+cat > "${home}/.vimrc" << 'XPXE_VIMRC'
+{{ vimrc }}
+XPXE_VIMRC
+chown {{ user | sh_quote }}: "${home}/.vimrc"
+{% endfor %}

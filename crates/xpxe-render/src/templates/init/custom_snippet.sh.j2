@@ -1,0 +1,8 @@
+dir="$(mktemp -d)"
+trap 'rm -rf "${dir}"' EXIT
+{% for snippet in snippets %}
+# ---- 片段 {{ loop.index }}：{{ snippet.name_comment }}（sha256 {{ snippet.sha256 }}）----
+echo {{ snippet.b64 | sh_quote }} | base64 -d > "${dir}/{{ loop.index }}.sh"
+echo "xpxe: 执行自定义片段 "{{ snippet.name | sh_quote }}
+bash "${dir}/{{ loop.index }}.sh"
+{% endfor %}

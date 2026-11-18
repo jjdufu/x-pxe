@@ -1,0 +1,14 @@
+{% if disable_now %}
+systemctl disable --now {{ disable_now }}
+{% endif %}
+{% for unit in enable_now %}
+systemctl unmask {{ unit | sh_quote }} 2>/dev/null || true
+systemctl enable --now {{ unit | sh_quote }}
+{% endfor %}
+{% for unit in mask %}
+systemctl mask {{ unit | sh_quote }}
+{% endfor %}
+systemctl daemon-reload
+{% if editor %}
+update-alternatives --set editor {{ editor | sh_quote }}
+{% endif %}

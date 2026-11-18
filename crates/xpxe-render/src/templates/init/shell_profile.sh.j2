@@ -1,0 +1,15 @@
+cat > /etc/profile.d/zz-aliases.sh << 'XPXE_EOF'
+{{ aliases }}
+XPXE_EOF
+chmod 644 /etc/profile.d/zz-aliases.sh
+{% if ssh_agent %}
+cat > /etc/profile.d/ssh-agent.sh << 'XPXE_EOF'
+if [ -z "$SSH_AGENT_PID" ]; then
+    eval "$(ssh-agent -s)" > /dev/null
+fi
+ssh-add ~/{{ ssh_agent }} 2>/dev/null || true
+XPXE_EOF
+chmod 644 /etc/profile.d/ssh-agent.sh
+{% else %}
+rm -f /etc/profile.d/ssh-agent.sh
+{% endif %}

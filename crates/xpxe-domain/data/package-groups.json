@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "debian": "13",
+  "groups": {
+    "base_ops": ["sudo", "vim", "git", "curl", "wget", "rsync", "jq", "tree", "tmux", "btop", "bash-completion", "man-db", "cron", "dialog", "dos2unix", "zip", "xz-utils", "p7zip-full", "psmisc", "ncdu", "ripgrep", "rsyslog", "iputils-ping", "gpg", "expect"],
+    "net_diag": ["dnsutils", "net-tools", "nload", "iftop", "tcptraceroute", "fping", "hping3", "socat"],
+    "perf": ["sysstat", "iotop", "nmon", "strace", "powertop"],
+    "storage": ["xfsprogs", "parted", "nfs-common", "rpcbind", "ifenslave", "libaio1t64"],
+    "build": ["gcc", "g++", "make", "pkg-config", "libssl-dev", "liblzma-dev", "libncurses6", "gh", "python3-defusedxml"],
+    "security": ["fail2ban", "rkhunter", "clamav", "libpam-pwquality"],
+    "headless": ["libnspr4", "libnss3", "libatk1.0-0t64", "libatk-bridge2.0-0t64", "libatspi2.0-0t64", "libcups2t64", "libgbm1", "libasound2t64", "libxkbcommon0", "libcairo2", "libpango-1.0-0", "libxcomposite1", "libxdamage1", "libxfixes3", "libxrandr2", "libvulkan1", "xdg-utils"],
+    "docs_fonts": ["libreoffice-writer-nogui", "poppler-utils", "fonts-noto-cjk", "fonts-wqy-microhei", "fonts-liberation", "fonts-noto-color-emoji"]
+  }
+}

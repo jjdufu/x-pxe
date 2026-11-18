@@ -1,0 +1,5 @@
+{% if enable_timer %}
+systemctl enable --now fstrim.timer
+{% else %}
+echo "fstrim.timer 保持系统默认"
+{% endif %}

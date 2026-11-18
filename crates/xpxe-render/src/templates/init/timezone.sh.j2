@@ -1,0 +1,4 @@
+timedatectl set-timezone {{ zone | sh_quote }}
+timedatectl set-local-rtc {{ local_rtc }}
+echo {{ zone | sh_quote }} > /etc/timezone
+ln -sf /usr/share/zoneinfo/{{ zone | sh_quote }} /etc/localtime

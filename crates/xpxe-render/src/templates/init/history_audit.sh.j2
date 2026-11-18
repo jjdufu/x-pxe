@@ -1,0 +1,25 @@
+mkdir -vp {{ dir | sh_quote }}
+chmod {{ mode }} {{ dir | sh_quote }}
+cat > /etc/profile.d/history-record.sh << 'XPXE_EOF'
+# 审计：每次登录独立 HISTFILE；HISTSIZE/HISTFILESIZE 统一为大容量
+export HISTSIZE={{ histsize }}
+export HISTFILESIZE={{ histsize }}
+
+LOGTIME=$(date +%Y%m%d-%H-%M-%S)
+export HISTFILE="{{ dir }}/${USER}.${LOGTIME}.history"
+if [ ! -f "${HISTFILE}" ]; then
+  touch "${HISTFILE}"
+fi
+chmod 600 "${HISTFILE}"
+{% if append_only %}
+chattr +a "${HISTFILE}" 2>/dev/null || true
+{% endif %}
+
+{% if source_ip %}
+HISTTIMEFORMAT="%F_%T $(whoami)#$(who -u am i 2>/dev/null| awk '{print $NF}'|sed -e 's/[()]//g'):"
+{% else %}
+HISTTIMEFORMAT="%F_%T "
+{% endif %}
+export HISTTIMEFORMAT
+XPXE_EOF
+chmod 644 /etc/profile.d/history-record.sh

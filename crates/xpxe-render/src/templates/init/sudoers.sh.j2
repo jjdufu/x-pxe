@@ -1,0 +1,23 @@
+{% if backup %}
+cp -a /etc/sudoers /etc/sudoers.ori 2>/dev/null || true
+{% endif %}
+tmp="$(mktemp)"
+trap 'rm -f "${tmp}"' EXIT
+cat > "${tmp}" << 'XPXE_EOF'
+{{ content }}
+XPXE_EOF
+visudo -cf "${tmp}"
+install -m 0440 -o root -g root "${tmp}" /etc/sudoers.d/{{ dropin }}
+visudo -cf /etc/sudoers.d/{{ dropin }}
+visudo -cf /etc/sudoers
+cat > /etc/logrotate.d/sudo << 'XPXE_EOF'
+{{ logfile }} {
+    {{ period }}
+    rotate {{ rotate }}
+{% if compress %}
+    compress
+{% endif %}
+    missingok
+    create 640 root root
+}
+XPXE_EOF

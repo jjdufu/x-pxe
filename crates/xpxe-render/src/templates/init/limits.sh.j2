@@ -1,0 +1,9 @@
+cat > /etc/security/limits.d/{{ file_name }} << 'XPXE_EOF'
+* soft nofile {{ nofile }}
+* hard nofile {{ nofile }}
+* soft nproc  {{ nproc }}
+* hard nproc  {{ nproc }}
+* soft core   {{ core }}
+* hard core   {{ core }}
+# End of file
+XPXE_EOF

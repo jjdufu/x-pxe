@@ -5,6 +5,7 @@
 #![doc(test(attr(deny(warnings), forbid(unsafe_code))))]
 
 pub mod decision;
+pub mod init;
 pub mod inventory;
 pub mod lifecycle;
 pub mod option93;

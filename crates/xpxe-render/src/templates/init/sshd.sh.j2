@@ -1,0 +1,18 @@
+mkdir -p /etc/ssh/sshd_config.d
+cat > /etc/ssh/sshd_config.d/{{ dropin }} << 'XPXE_EOF'
+{% for line in lines %}
+{{ line }}
+{% endfor %}
+XPXE_EOF
+{% if sync_main %}
+sed -i 's/^#\?X11Forwarding.*/X11Forwarding {{ x11 }}/' /etc/ssh/sshd_config 2>/dev/null || true
+{% if banner %}
+if ! grep -qiE '^\s*Banner\s+' /etc/ssh/sshd_config; then
+  echo 'Banner {{ banner }}' >> /etc/ssh/sshd_config
+else
+  sed -ri 's#^\s*(banner|Banner)\s+.*#Banner {{ banner }}#' /etc/ssh/sshd_config
+fi
+{% endif %}
+{% endif %}
+sshd -t
+systemctl reload ssh 2>/dev/null || systemctl restart ssh

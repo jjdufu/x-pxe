@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Get load averages
+LOAD1=$(awk '{print $1}' /proc/loadavg)
+LOAD5=$(awk '{print $2}' /proc/loadavg)
+LOAD15=$(awk '{print $3}' /proc/loadavg)
+# Get free memory
+MEMORY_USED=$(free -t -m | awk '/Mem/{print $3}')
+MEMORY_ALL=$(free -t -m | awk '/Mem/{print $2}')
+MEMORY_PERCENTAGE=$(free | awk '/Mem/{printf("%.2f%%\n", $3/$2*100)}')
+# Get system uptime
+UPTIME=$(awk '{print int($1)}' /proc/uptime)
+UPTIME_DAYS=$((UPTIME/60/60/24))
+UPTIME_HOURS=$((UPTIME/60/60%24))
+UPTIME_MINS=$((UPTIME/60%60))
+UPTIME_SECS=$((UPTIME%60))
+# Get processes
+PROCESS=$(ps -eo user=|sort|uniq -c | awk '{print $2 " " $1 }')
+PROCESS_ALL=$(echo "${PROCESS}" | awk '{print $2}' | awk '{SUM += $1} END {print SUM}')
+PROCESS_ROOT=$(echo "${PROCESS}" | awk '$1=="root"{print $2}')
+PROCESS_USER=$(echo "${PROCESS}" | awk '$1!="root"{SUM += $2} END {print SUM+0}')
+# Get processors
+PROCESSOR_NAME=$(grep "model name" /proc/cpuinfo | cut -d ' ' -f3- | awk '{print $0}' | head -1)
+PROCESSOR_NAME=${PROCESSOR_NAME:-$(uname -m)}
+PROCESSOR_COUNT=$(grep -c '^processor' /proc/cpuinfo)
+# Colors
+G="\033[01;32m"
+R="\033[01;31m"
+D="\033[39m\033[2m"
+N="\033[0m"
+echo -e "${G}Login success.${N} Please execute the commands and operation data carefully."
+echo -e "You are logged in to ${G}$(uname -n)${N}, Login time is $(/bin/date "+%Y-%m-%d %H:%M:%S").\n"
+echo -e "[System Info]\n"
+echo -e "  SYSTEM    : $(head -1 /etc/os-release | awk -F'[="]+' '{print $2}')"
+echo -e "  KERNEL    : $(uname -sr)"
+echo -e "  UPTIME    : ${UPTIME_DAYS} days ${UPTIME_HOURS} hours ${UPTIME_MINS} minutes ${UPTIME_SECS} seconds"
+echo -e "  CPU       : ${PROCESSOR_NAME} (${G}${PROCESSOR_COUNT}${N} vCPU)\n"
+echo -e "  MEMORY    : ${MEMORY_USED} MB / ${MEMORY_ALL} MB (${G}${MEMORY_PERCENTAGE}${N} Used)"
+echo -e "  LOAD AVG  : ${G}${LOAD1}${N} (1m), ${G}${LOAD5}${N} (5m), ${G}${LOAD15}${N} (15m)"
+echo -e "  PROCESSES : ${G}${PROCESS_ROOT}${N} (root), ${G}${PROCESS_USER}${N} (user), ${G}${PROCESS_ALL}${N} (total)"
+echo -e "  USERS     : ${G}$(users | wc -w)${N} users logged in"
+echo -e "  BASH      : ${G}${BASH_VERSION}${N}\n"
+echo -e "[Disk Usage]\n"
+mapfile -t DFH < <(df -h{{ exclude_args }} --output=target,pcent,size,used | tail -n+2)
+for LINE in "${DFH[@]}"; do
+    DISK_USAGE=$(echo "${LINE}" | awk '{print $2}' | sed 's/%//')
+    [[ "${DISK_USAGE}" =~ ^[0-9]+$ ]] || DISK_USAGE=0
+    USAGE_WIDTH=$((DISK_USAGE*{{ bar_width }}/100))
+    if [ "${DISK_USAGE}" -gt {{ warn_percent }} ]; then
+        COLOR="${R}"
+    else
+        COLOR="${G}"
+    fi
+    BAR="[${COLOR}"
+    for ((i=0; i<USAGE_WIDTH; i++)); do
+        BAR+="="
+    done
+    BAR+=${D}
+    for ((i=USAGE_WIDTH; i<{{ bar_width }}; i++)); do
+        BAR+="="
+    done
+    BAR+="${N}]"
+    echo "${LINE}" | awk '{ printf("Mounted: %-32s %s / %s (%s Used)\n", $1, $4, $3, $2); }' | sed -e 's/^/  /'
+    echo -e "${BAR}" | sed -e 's/^/  /'
+done
+echo

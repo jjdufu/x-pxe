@@ -1,0 +1,16 @@
+{% if clear_issue %}
+: > /etc/issue
+: > /etc/issue.net
+{% endif %}
+{% if clear_motd %}
+: > /etc/motd
+{% endif %}
+{% if disable_scripts %}
+chmod -x /etc/update-motd.d/* 2>/dev/null || true
+{% endif %}
+{% if header %}
+cat > /etc/update-motd.d/00-custom-header << 'XPXE_EOF'
+{{ header }}
+XPXE_EOF
+chmod +x /etc/update-motd.d/00-custom-header
+{% endif %}

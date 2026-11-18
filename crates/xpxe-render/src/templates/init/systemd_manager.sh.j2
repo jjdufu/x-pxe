@@ -1,0 +1,6 @@
+mkdir -p /etc/systemd/system.conf.d
+cat > /etc/systemd/system.conf.d/timeout.conf << 'XPXE_EOF'
+[Manager]
+DefaultTimeoutStartSec={{ start }}s
+DefaultTimeoutStopSec={{ stop }}s
+XPXE_EOF

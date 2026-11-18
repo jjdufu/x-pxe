@@ -1,0 +1,41 @@
+{
+  "name": "k8s-node",
+  "modules": {
+    "users_keys": {
+      "settings": {
+        "root_authorized_keys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost"
+        ],
+        "users": [
+          {
+            "name": "jwczjzl",
+            "groups": [
+              "sudo"
+            ],
+            "authorized_keys": [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost"
+            ]
+          }
+        ]
+      }
+    },
+    "vimrc": {
+      "settings": {
+        "targets": [
+          "root",
+          "jwczjzl"
+        ]
+      }
+    },
+    "sudoers": {
+      "settings": {
+        "full_sudo_users": [
+          "jwczjzl"
+        ]
+      }
+    }
+  },
+  "finalize": {
+    "reboot": true
+  }
+}

@@ -1,0 +1,10 @@
+export DEBIAN_FRONTEND=noninteractive
+{% if packages %}
+apt-get install -y{% if not recommends %} --no-install-recommends{% endif %} \
+{% for name in packages %}
+  {{ name | sh_quote }}{% if not loop.last %} \{% endif %}
+
+{% endfor %}
+{% else %}
+echo "没有需要安装的软件包"
+{% endif %}

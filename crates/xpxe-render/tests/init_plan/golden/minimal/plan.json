@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "session": "sess01",
+  "events_url": "http://10.77.0.1:8080/p/agent001/events",
+  "log_path": "/var/log/xpxe-firstboot.log",
+  "final_retry_s": 600,
+  "modules": [
+    {
+      "id": "apt_sources",
+      "title": "APT 源整理",
+      "enabled": true,
+      "timeout_s": 900,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 apt_sources：APT 源整理\nset -euo pipefail\n\n# 经典 sources.list 与 *.list：注释掉 deb cdrom: 行；deb822 指向 cdrom 的 *.sources 改名禁用\nshopt -s nullglob\nfor f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do\n  [[ -f \"$f\" ]] || continue\n  sed -i -E 's/^[[:space:]]*(deb(-src)?[[:space:]]+cdrom:)/# \\1/' \"$f\"\ndone\nfor f in /etc/apt/sources.list.d/*.sources; do\n  if grep -qiE '^URIs:[[:space:]]*cdrom:' \"$f\"; then\n    mv -f \"$f\" \"${f}.disabled-cdrom\"\n  fi\ndone\nshopt -u nullglob\n# 只恢复已有的被注释 http(s) 行，不写入新地址\nshopt -s nullglob\nfor f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do\n  [[ -f \"$f\" ]] || continue\n  sed -i -E 's/^#[[:space:]]*(deb(-src)?[[:space:]]+https?:)/\\1/' \"$f\"\ndone\nshopt -u nullglob\nhas_net_src=0\nif grep -RqhE '^[[:space:]]*deb(-src)?[[:space:]]+https?:' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then\n  has_net_src=1\nfi\nshopt -s nullglob\nfor f in /etc/apt/sources.list.d/*.sources; do\n  if grep -qiE '^URIs:[[:space:]]*https?:' \"$f\"; then\n    has_net_src=1\n    break\n  fi\ndone\nshopt -u nullglob\nif [[ \"$has_net_src\" -eq 0 ]]; then\n  echo \"未检测到网络 APT 源，写入兜底 deb822 源\"\n  cat > /etc/apt/sources.list.d/debian.sources << 'XPXE_EOF'\nTypes: deb\nURIs: https://deb.debian.org/debian\nSuites: trixie trixie-updates trixie-backports\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\nTypes: deb\nURIs: https://deb.debian.org/debian-security\nSuites: trixie-security\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nXPXE_EOF\nfi\napt-get autoclean -y || true\napt-get update\n",
+      "sha256": "c42518030e577ffdb941f6da83b416aa495d5240896c45cfbce4422a4fad58bb"
+    },
+    {
+      "id": "packages",
+      "title": "软件包",
+      "enabled": true,
+      "timeout_s": 3600,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 packages：软件包\nset -euo pipefail\n\nexport DEBIAN_FRONTEND=noninteractive\napt-get install -y \\\n  'sudo' \\\n  'vim' \\\n  'git' \\\n  'curl' \\\n  'wget' \\\n  'rsync' \\\n  'jq' \\\n  'tree' \\\n  'tmux' \\\n  'btop' \\\n  'bash-completion' \\\n  'man-db' \\\n  'cron' \\\n  'dialog' \\\n  'dos2unix' \\\n  'zip' \\\n  'xz-utils' \\\n  'p7zip-full' \\\n  'psmisc' \\\n  'ncdu' \\\n  'ripgrep' \\\n  'rsyslog' \\\n  'iputils-ping' \\\n  'gpg' \\\n  'expect'\n",
+      "sha256": "d633232eda6f5281676188e950a5e1766ec5a795c2c3ac7581a0de437feaef74"
+    },
+    {
+      "id": "users_keys",
+      "title": "用户与公钥",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 users_keys：用户与公钥\nset -euo pipefail\n\nif grep -qE '^#? ?SHELL=' /etc/default/useradd; then\n  sed -i -E 's|^#? ?SHELL=.*|SHELL=/bin/bash|' /etc/default/useradd\nelse\n  echo 'SHELL=/bin/bash' >> /etc/default/useradd\nfi\ninstall -d -m 700 /root/.ssh\ntouch /root/.ssh/authorized_keys\ngrep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' /root/.ssh/authorized_keys || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' >> /root/.ssh/authorized_keys\nchmod 600 /root/.ssh/authorized_keys\n\n# ---- jwczjzl ----\nif ! id -u 'jwczjzl' &>/dev/null; then\n  useradd -m -s '/bin/bash' 'jwczjzl'\nfi\nusermod -s '/bin/bash' 'jwczjzl'\npasswd -l 'jwczjzl' >/dev/null\nusermod -aG 'sudo' 'jwczjzl'\nhome=\"$(getent passwd 'jwczjzl' | cut -d: -f6)\"\ninstall -d -m 700 \"${home}/.ssh\"\nif [[ ! -f \"${home}/.ssh/authorized_keys\" ]]; then\n  if [[ -f /root/.ssh/authorized_keys ]]; then\n    cp /root/.ssh/authorized_keys \"${home}/.ssh/authorized_keys\"\n  else\n    touch \"${home}/.ssh/authorized_keys\"\n  fi\nfi\ngrep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' \"${home}/.ssh/authorized_keys\" || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBtCscA5CqkUDclClV2dKSGH4JxR2vLulpTgLR34Pz1l jay@localhost' >> \"${home}/.ssh/authorized_keys\"\nchmod 600 \"${home}/.ssh/authorized_keys\"\nchown -R 'jwczjzl': \"${home}/.ssh\"\nloginctl enable-linger 'jwczjzl'\n",
+      "sha256": "61470aea4535f96c8633bb01016e17c169f2caec301145857d14faa1dca5b068"
+    },
+    {
+      "id": "timezone",
+      "title": "时区",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 timezone：时区\nset -euo pipefail\n\ntimedatectl set-timezone 'Asia/Shanghai'\ntimedatectl set-local-rtc 0\necho 'Asia/Shanghai' > /etc/timezone\nln -sf /usr/share/zoneinfo/'Asia/Shanghai' /etc/localtime\n",
+      "sha256": "47c09253cd0ac2226f29ecb9fe504971bf7724eeb39c748fd2f89af6ca62fec1"
+    },
+    {
+      "id": "time_sync",
+      "title": "时间同步",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 time_sync：时间同步\nset -euo pipefail\n\nexport DEBIAN_FRONTEND=noninteractive\nif ! dpkg-query -W -f='${Status}' systemd-timesyncd 2>/dev/null | grep -q 'install ok installed'; then\n  apt-get install -y systemd-timesyncd\nfi\nmkdir -p /etc/systemd/timesyncd.conf.d\ncat > /etc/systemd/timesyncd.conf.d/ntp.conf << 'XPXE_EOF'\n[Time]\nNTP=ntp.aliyun.com\nXPXE_EOF\nsystemctl enable --now systemd-timesyncd\nsystemctl restart systemd-timesyncd\n",
+      "sha256": "9e4341a02d6ac6e46e9c8931317778d916a3f3d02268c2c66190e1b7a29713da"
+    },
+    {
+      "id": "locale",
+      "title": "语言环境",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 locale：语言环境\nset -euo pipefail\n\ncat > /etc/default/locale << 'XPXE_EOF'\nLANG=\"en_US.UTF-8\"\nLC_ALL=\"en_US.UTF-8\"\nLANGUAGE=\"en_US.UTF-8\"\nXPXE_EOF\ntouch /etc/locale.gen\nsed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen\nsed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen\ngrep -qxF 'zh_CN.UTF-8 UTF-8' /etc/locale.gen || echo 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen\ngrep -qxF 'en_US.UTF-8 UTF-8' /etc/locale.gen || echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen\nlocale-gen\nupdate-locale LANG='en_US.UTF-8' LC_ALL='en_US.UTF-8' LANGUAGE='en_US.UTF-8'\n",
+      "sha256": "d7901f4c0c1595b76601331487e673e342b8440d78b74096c2ddc2d9e9ec1517"
+    },
+    {
+      "id": "systemd_manager",
+      "title": "systemd 启停超时",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "ssh_generator_fix",
+      "title": "ssh generator 刷屏修复",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "sshd",
+      "title": "SSH 服务配置",
+      "enabled": true,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "#!/bin/bash\n# x-pxe 初始化模块 sshd：SSH 服务配置\nset -euo pipefail\n\nmkdir -p /etc/ssh/sshd_config.d\ncat > /etc/ssh/sshd_config.d/jwczjzl.conf << 'XPXE_EOF'\nPermitRootLogin no\nX11Forwarding no\nX11UseLocalhost yes\nAllowTcpForwarding yes\nAllowAgentForwarding yes\nIgnoreRhosts yes\nGSSAPIAuthentication no\nUseDNS no\nCompression no\nTCPKeepAlive yes\nPasswordAuthentication no\nBanner /etc/issue\nXPXE_EOF\nsed -i 's/^#\\?X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config 2>/dev/null || true\nif ! grep -qiE '^\\s*Banner\\s+' /etc/ssh/sshd_config; then\n  echo 'Banner /etc/issue' >> /etc/ssh/sshd_config\nelse\n  sed -ri 's#^\\s*(banner|Banner)\\s+.*#Banner /etc/issue#' /etc/ssh/sshd_config\nfi\nsshd -t\nsystemctl reload ssh 2>/dev/null || systemctl restart ssh\n",
+      "sha256": "e4709f6462cf537340a95851d400f998c987cac5a68be6d437034f9cc577041f"
+    },
+    {
+      "id": "sudoers",
+      "title": "sudoers",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "shell_profile",
+      "title": "Shell 环境",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "vimrc",
+      "title": "vimrc",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "services",
+      "title": "系统服务",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "motd",
+      "title": "登录提示",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "sysctl",
+      "title": "内核参数",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "limits",
+      "title": "资源限制",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "history_audit",
+      "title": "命令历史审计",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "fstrim",
+      "title": "fstrim",
+      "enabled": false,
+      "timeout_s": 300,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "custom_snippet",
+      "title": "自定义片段",
+      "enabled": false,
+      "timeout_s": 900,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "cleanup",
+      "title": "清理",
+      "enabled": false,
+      "timeout_s": 900,
+      "continue_on_error": false,
+      "script": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "finalize": {
+    "reboot": true
+  }
+}

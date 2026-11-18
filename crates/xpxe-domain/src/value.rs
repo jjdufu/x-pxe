@@ -726,6 +726,12 @@ impl SafeText {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// 仅用于编译期已知的合法默认值。
+    #[must_use]
+    pub(crate) fn from_verified(raw: &str) -> Self {
+        Self(raw.to_owned())
+    }
 }
 
 impl_string_value!(SafeText);

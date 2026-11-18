@@ -1,0 +1,7 @@
+{% if mask_generator %}
+mkdir -p /etc/systemd/system-generators
+ln -sfn /dev/null /etc/systemd/system-generators/systemd-ssh-generator
+{% endif %}
+{% for unit in sockets %}
+systemctl mask {{ unit | sh_quote }} 2>/dev/null || true
+{% endfor %}

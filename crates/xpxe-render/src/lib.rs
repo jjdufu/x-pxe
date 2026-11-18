@@ -10,6 +10,7 @@ pub mod init;
 mod ipxe;
 mod md5sum;
 mod preseed;
+pub mod redfish_boot;
 mod request;
 mod template;
 

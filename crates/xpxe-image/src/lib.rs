@@ -2,12 +2,16 @@
 //!
 //! - [`fat`]：在内存中生成 FAT12/16 文件系统镜像（支持长文件名），用作 El Torito 的 ESP 映像。
 //! - [`iso`]：生成 ISO9660 + El Torito 引导光盘，只含一个 UEFI（平台 0xEF）no-emulation 引导项。
+//! - [`session`]：Redfish 会话引导 ISO（`ipxe.efi` + `autoexec.ipxe`）。
+//! - [`readback`]：独立于写出器的 ISO/FAT 读回解析器，用于核对生成结果。
 //!
 //! 输出是确定性的：所有时间戳由调用方给出的 [`Timestamp`] 决定，相同输入得到相同字节。
 #![doc(test(attr(deny(warnings), forbid(unsafe_code))))]
 
 pub mod fat;
 pub mod iso;
+pub mod readback;
+pub mod session;
 
 /// 镜像内统一使用的时间戳（UTC）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +63,8 @@ pub enum ImageError {
     BadTimestamp,
     /// 路径为空、含非法字符或与已有条目冲突。
     BadPath(String),
+    /// 读回解析时镜像结构不合法。
+    Malformed(String),
 }
 
 impl std::fmt::Display for ImageError {
@@ -67,6 +73,7 @@ impl std::fmt::Display for ImageError {
             Self::TooLarge => f.write_str("内容超出镜像格式能表示的大小"),
             Self::BadTimestamp => f.write_str("时间戳越界"),
             Self::BadPath(path) => write!(f, "非法路径：{path}"),
+            Self::Malformed(what) => write!(f, "镜像结构不合法：{what}"),
         }
     }
 }

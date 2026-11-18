@@ -1,0 +1,20 @@
+#!ipxe
+set mac 52:54:00:77:01:a1
+set idx:int32 0
+:find
+isset ${net${idx}/mac} || goto nonic
+iseq ${net${idx}/mac} ${mac} && goto found ||
+inc idx && goto find
+:found
+set net${idx}/ip 10.77.0.60
+set net${idx}/netmask 255.255.255.0
+set net${idx}/gateway 10.77.0.1
+set dns 10.77.0.1
+ifopen net${idx} || goto failed
+chain http://10.77.0.1:8080/p/lab-redfish-r1/boot.ipxe || goto failed
+:nonic
+echo x-pxe: no interface with MAC ${mac}
+:failed
+echo x-pxe: network boot failed, returning to firmware in 10 s
+sleep 10
+exit

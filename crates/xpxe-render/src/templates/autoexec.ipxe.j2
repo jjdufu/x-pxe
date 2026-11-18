@@ -1,0 +1,21 @@
+#!ipxe
+set mac {{ boot_mac }}
+set idx:int32 0
+:find
+isset ${net${idx}/mac} || goto nonic
+iseq ${net${idx}/mac} ${mac} && goto found ||
+inc idx && goto find
+:found
+{% if static %}set net${idx}/ip {{ ip }}
+set net${idx}/netmask {{ netmask }}
+{% if gateway %}set net${idx}/gateway {{ gateway }}
+{% endif %}{% if dns %}set dns {{ dns }}
+{% endif %}ifopen net${idx} || goto failed
+{% else %}dhcp net${idx} || dhcp net${idx} || goto failed
+{% endif %}chain {{ boot_base }}/p/{{ boot_token }}/boot.ipxe || goto failed
+:nonic
+echo x-pxe: no interface with MAC ${mac}
+:failed
+echo x-pxe: network boot failed, returning to firmware in 10 s
+sleep 10
+exit

@@ -32,6 +32,14 @@ async fn admin_guards(harness: &Harness, login: &Login, node: i64) -> Outcome {
         .ok("POST", "/api/v1/users", login, Some(&body))
         .await?;
     let viewer = harness.login("watcher", "Watcher-Passw0rd-2026!").await?;
+    let credentials = json!({ "username": "watcher", "password": "Watcher-Passw0rd-2026!" });
+    let raw = harness
+        .admin("POST", "/api/v1/auth/login", None, Some(&credentials))
+        .await?;
+    let csrf_cookie = raw.headers.iter().any(|(key, value)| {
+        key == "set-cookie" && value.starts_with("xpxe_csrf=") && !value.contains("HttpOnly")
+    });
+    ensure(csrf_cookie, "登录下发非 HttpOnly 的 xpxe_csrf Cookie")?;
     let denied = harness
         .admin(
             "POST",

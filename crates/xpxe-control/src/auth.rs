@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::extract::{FromRequestParts, Path, State};
-use axum::response::{IntoResponse as _, Response};
+use axum::response::{AppendHeaders, IntoResponse as _, Response};
 use http::request::Parts;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde::Deserialize;
@@ -18,6 +18,8 @@ use crate::{Failure, Outcome, internal};
 
 /// 会话 Cookie 名。
 pub(crate) const COOKIE: &str = "xpxe_session";
+/// CSRF Cookie 名（非 `HttpOnly`，供 `WebUI` 刷新页面后读回 CSRF 令牌；服务端仍按会话里的哈希核对）。
+pub(crate) const CSRF_COOKIE: &str = "xpxe_csrf";
 /// CSRF 请求头。
 pub(crate) const CSRF_HEADER: &str = "x-csrf-token";
 
@@ -301,6 +303,30 @@ fn user_json(user: &User) -> Value {
 ///
 /// 失败时返回错误。
 fn session_cookie(app: &App, value: &str, clear: bool) -> Outcome<HeaderValue> {
+    cookie(app, COOKIE, value, clear, "; HttpOnly")
+}
+
+/// CSRF Cookie（双提交：浏览器端读回后放进 `X-CSRF-Token`）。
+///
+/// # Errors
+///
+/// 失败时返回错误。
+fn csrf_cookie(app: &App, value: &str, clear: bool) -> Outcome<HeaderValue> {
+    cookie(app, CSRF_COOKIE, value, clear, "")
+}
+
+/// 生成 `Set-Cookie` 值。
+///
+/// # Errors
+///
+/// 值含非法字符时返回错误。
+fn cookie(
+    app: &App,
+    name: &str,
+    value: &str,
+    clear: bool,
+    http_only: &str,
+) -> Outcome<HeaderValue> {
     let secure = if app.settings.tls.is_some() {
         "; Secure"
     } else {
@@ -308,7 +334,7 @@ fn session_cookie(app: &App, value: &str, clear: bool) -> Outcome<HeaderValue> {
     };
     let expire = if clear { "; Max-Age=0" } else { "" };
     HeaderValue::from_str(&format!(
-        "{COOKIE}={value}; HttpOnly; SameSite=Strict; Path=/{secure}{expire}"
+        "{name}={value}{http_only}; SameSite=Strict; Path=/{secure}{expire}"
     ))
     .map_err(internal)
 }
@@ -348,8 +374,10 @@ pub(crate) async fn login(
         Ok((user, session)) => {
             app.audit(&actor.record("auth.login", &format!("user:{}", user.id), "ok", json!({})));
             let cookie = session_cookie(&app, &session.session_id, false)?;
+            let csrf = csrf_cookie(&app, &session.csrf_token, false)?;
             let reply = json!({ "user": user_json(&user), "csrf_token": session.csrf_token });
-            Ok(([(header::SET_COOKIE, cookie)], Json(reply)).into_response())
+            let cookies = AppendHeaders([(header::SET_COOKIE, cookie), (header::SET_COOKIE, csrf)]);
+            Ok((cookies, Json(reply)).into_response())
         }
         Err(error) => {
             app.audit(&actor.record(
@@ -384,7 +412,9 @@ pub(crate) async fn logout(State(app): State<Arc<App>>, principal: Principal) ->
         json!({}),
     ));
     let cookie = session_cookie(&app, "", true)?;
-    Ok(([(header::SET_COOKIE, cookie)], StatusCode::NO_CONTENT).into_response())
+    let csrf = csrf_cookie(&app, "", true)?;
+    let cookies = AppendHeaders([(header::SET_COOKIE, cookie), (header::SET_COOKIE, csrf)]);
+    Ok((cookies, StatusCode::NO_CONTENT).into_response())
 }
 
 /// `GET /me`。

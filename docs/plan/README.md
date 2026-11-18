@@ -339,20 +339,23 @@ pub struct BootDirective { mac: MacAddr, session: SessionId, boot_url: BootUrl, 
 
 ## 11. 步骤索引
 
-| 步骤 | 文档 | 核心交付 | 验收入口 |
-| :--- | :--- | :--- | :--- |
-| 01 | [step-01-workspace-and-gates.md](./step-01-workspace-and-gates.md) | workspace 骨架、工具链、gate.sh、web-gate.sh 骨架、依赖预检 | `scripts/gate.sh` |
-| 02 | [step-02-boot-lab-spike.md](./step-02-boot-lab-spike.md) | 开发机上的隔离 QEMU/KVM 实验室（SeaBIOS/OVMF × 5 种网卡、Kea 现网 DHCP 替身、sushy-tools），`xpxe-lab` 探针，抓包夹具，关键假设结论 | `lab/run.sh` 矩阵 + 结论表 |
-| 03 | [step-03-domain-core.md](./step-03-domain-core.md) | 领域类型、状态机、超时、引导决策、配置版本模型 | `cargo test -p xpxe-domain` + gate |
-| 04 | [step-04-debian-install-render.md](./step-04-debian-install-render.md) | iPXE 脚本、内核参数、preseed、确定性选盘、分区 | 渲染快照测试 + gate |
-| 05 | [step-05-init-modules-and-agent.md](./step-05-init-modules-and-agent.md) | 初始化模块目录（覆盖 init-d13.sh 全部功能）、`xpxe-agent` | 模块渲染测试 + 容器内执行测试 + gate |
-| 06 | [step-06-store-auth-versioning.md](./step-06-store-auth-versioning.md) | SQLite、版本链、审计哈希链、主密钥封装、账户与令牌 | `cargo test -p xpxe-store` + gate |
-| 07 | [step-07-assets.md](./step-07-assets.md) | iPXE 与 Debian netboot 获取、签名校验、ABI 对齐、激活/金丝雀/回滚 | 离线夹具测试 + 联网冒烟 + gate |
-| 08 | [step-08-bootnet-proxydhcp-tftp.md](./step-08-bootnet-proxydhcp-tftp.md) | ProxyDHCP、只读 TFTP、现网 DHCP 探测、`xpxe-bootnet` | 夹具回放 + 实验室 + gate |
-| 09 | [step-09-iso-and-redfish.md](./step-09-iso-and-redfish.md) | UEFI 引导 ISO 生成（纯 Rust）、Redfish 客户端与证书固定 | OVMF 启动 + sushy-tools + gate |
-| 10 | [step-10-control-plane.md](./step-10-control-plane.md) | `xpxe-control`：三个监听、认证、事件、定时器、SSE、`xpxe-e2e` | `cargo test -p xpxe-e2e` + gate |
-| 11 | [step-11-webui-foundation.md](./step-11-webui-foundation.md) | WebUI 基座、Token、Theme Editor、组件库 | `scripts/web-gate.sh` |
-| 12 | [step-12-webui-pages.md](./step-12-webui-pages.md) | 全部业务页面与联调 | `scripts/web-gate.sh` + 联调清单 |
-| 13 | [step-13-deploy-and-acceptance.md](./step-13-deploy-and-acceptance.md) | 镜像、Compose、验收场景 | `scripts/accept.sh` |
+| 步骤 | 文档 | 核心交付 | 验收入口 | 状态 |
+| :--- | :--- | :--- | :--- | :--- |
+| 01 | [step-01-workspace-and-gates.md](./step-01-workspace-and-gates.md) | workspace 骨架、工具链、gate.sh、web-gate.sh 骨架、依赖预检 | `scripts/gate.sh` | 已完成 |
+| 02 | [step-02-boot-lab-spike.md](./step-02-boot-lab-spike.md) | 开发机上的隔离 QEMU/KVM 实验室（SeaBIOS/OVMF × 5 种网卡、Kea 现网 DHCP 替身、sushy-tools），`xpxe-lab` 探针，抓包夹具，关键假设结论 | `lab/run.sh` 矩阵 + 结论表 | 已完成 |
+| 03 | [step-03-domain-core.md](./step-03-domain-core.md) | 领域类型、状态机、超时、引导决策、配置版本模型 | `cargo test -p xpxe-domain` + gate | 已完成 |
+| 04 | [step-04-debian-install-render.md](./step-04-debian-install-render.md) | iPXE 脚本、内核参数、preseed、确定性选盘、分区 | 渲染快照测试 + gate | 已完成 |
+| 05 | [step-05-init-modules-and-agent.md](./step-05-init-modules-and-agent.md) | 初始化模块目录（覆盖 init-d13.sh 全部功能）、`xpxe-agent` | 模块渲染测试 + 容器内执行测试 + gate | 已完成 |
+| 06 | [step-06-store-auth-versioning.md](./step-06-store-auth-versioning.md) | SQLite、版本链、审计哈希链、主密钥封装、账户与令牌 | `cargo test -p xpxe-store` + gate | 已完成 |
+| 07 | [step-07-assets.md](./step-07-assets.md) | iPXE 与 Debian netboot 获取、签名校验、ABI 对齐、激活/金丝雀/回滚 | 离线夹具测试 + 联网冒烟 + gate | 已完成 |
+| 08 | [step-08-bootnet-proxydhcp-tftp.md](./step-08-bootnet-proxydhcp-tftp.md) | ProxyDHCP、只读 TFTP、现网 DHCP 探测、`xpxe-bootnet` | 夹具回放 + 实验室 + gate | 已完成 |
+| 09 | [step-09-iso-and-redfish.md](./step-09-iso-and-redfish.md) | UEFI 引导 ISO 生成（纯 Rust）、Redfish 客户端与证书固定 | OVMF 启动 + sushy-tools + gate | 已完成 |
+| 10 | [step-10-control-plane.md](./step-10-control-plane.md) | `xpxe-control`：三个监听、认证、事件、定时器、SSE、`xpxe-e2e` | `cargo test -p xpxe-e2e` + gate | 已完成 |
+| 11 | [step-11-webui-foundation.md](./step-11-webui-foundation.md) | WebUI 基座、Token、Theme Editor、组件库 | `scripts/web-gate.sh` | 进行中 |
+| 12 | [step-12-webui-pages.md](./step-12-webui-pages.md) | 全部业务页面与联调 | `scripts/web-gate.sh` + 联调清单 | 未开始 |
+| 13 | [step-13-deploy-and-acceptance.md](./step-13-deploy-and-acceptance.md) | 镜像、Compose、验收场景 | `scripts/accept.sh` | 未开始 |
+| 14 | [step-14-manual-iso-netboot.md](./step-14-manual-iso-netboot.md) | WebUI 上传 ISO + 可编辑 iPXE 引导菜单（状态机之外的手动装机）、sanboot、Rust 抽取内核/initrd 并把 ISO 打进 initrd | `lab/run.sh manual-sanboot manual-pve` + gate + web-gate | 未开始 |
+
+实施进度日志（提交、CI 运行号、偏差、实验室记录）见 [progress.md](./progress.md)，每步结束时同步更新。v1 发版条件：Step 13 与 Step 14 的验收均通过。
 
 每一步的完成定义统一包括三项：本步列出的验收命令全部通过；`scripts/gate.sh`（涉及 Rust 时）或 `scripts/web-gate.sh`（涉及 Web 时）全绿；按门禁文档第七节提交报告（门禁输出、新增测试及其证明的行为、对 lint 本身的异议）。

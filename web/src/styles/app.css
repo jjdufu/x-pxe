@@ -1,0 +1,30 @@
+/* 样式入口：Tailwind v4 唯一样式引擎；Token 绑定见 step-11 第 3.6 节。 */
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./components.css" layer(components);
+@import "./ark.css" layer(components);
+
+@theme inline {
+  --color-*: initial;
+  --radius-*: initial;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-input: var(--border-input);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --radius-chip: var(--radius-sm);
+  --radius-control: var(--radius-md);
+  --radius-card: min(var(--radius-lg), 24px);
+}
+
+[hidden] { display: none !important; }   /* 规范 §3 HIDDEN，同参考实现 styles.css 第 2 节 */
+.tabular { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: none; box-shadow: var(--ring); }

@@ -1,0 +1,153 @@
+/* 设计 Token 唯一来源（docs/plan/step-11-webui-foundation.md 第 3 节）。
+ * 契约值见 3.2 表；扩展 Token 取自参考实现 styles.css 第 1 节。
+ * html[data-gray] 选灰阶，html[data-theme] 选明暗；--radius-md、--accent、--accent-fg 由 Theme Editor 经 CSSOM 覆盖。 */
+:root {
+  --radius-md: 6px;
+  --radius-sm: calc(var(--radius-md) * 0.6);
+  --radius-lg: calc(var(--radius-md) * 1.4);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --tracking-tight: -0.02em;
+  --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  /* 语义色：取参考实现的同色系中满足 4.5:1 文字对比度的档位 */
+  --danger: #b91c1c;
+  --danger-fg: #ffffff;
+  --success: #166534;
+  --warning: #92400e;
+  --info: #1d4ed8;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --danger: #f87171;
+  --danger-fg: #09090b;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --info: #60a5fa;
+  color-scheme: dark;
+}
+
+:root, :root[data-gray="zinc"] {
+  --bg: #fcfcfc;
+  --surface: #f4f4f5;
+  --surface-2: #e4e4e7;
+  --border: #e4e4e7;
+  --border-input: #8c8c8f;
+  --text: #18181b;
+  --text-muted: #63636b;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+:root[data-theme="dark"], :root[data-gray="zinc"][data-theme="dark"] {
+  --bg: #09090b;
+  --surface: #121215;
+  --surface-2: #18181b;
+  --border: #27272a;
+  --border-input: #626264;
+  --text: #fafafa;
+  --text-muted: #a1a1aa;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: var(--bg);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+:root[data-gray="neutral"] {
+  --bg: #fcfcfc;
+  --surface: #f5f5f5;
+  --surface-2: #e5e5e5;
+  --border: #e5e5e5;
+  --border-input: #8c8c8c;
+  --text: #171717;
+  --text-muted: #656565;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+:root[data-gray="neutral"][data-theme="dark"] {
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-2: #1f1f1f;
+  --border: #262626;
+  --border-input: #636363;
+  --text: #fafafa;
+  --text-muted: #a3a3a3;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: var(--bg);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+:root[data-gray="slate"] {
+  --bg: #fcfcfd;
+  --surface: #f1f5f9;
+  --surface-2: #e2e8f0;
+  --border: #e2e8f0;
+  --border-input: #868d99;
+  --text: #0f172a;
+  --text-muted: #59677e;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+:root[data-gray="slate"][data-theme="dark"] {
+  --bg: #020617;
+  --surface: #0f172a;
+  --surface-2: #1e293b;
+  --border: #1e293b;
+  --border-input: #5d6673;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: var(--bg);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+:root[data-gray="sand"] {
+  --bg: #fdfdfc;
+  --surface: #f5f5f4;
+  --surface-2: #e7e5e4;
+  --border: #e7e5e4;
+  --border-input: #8f8c8b;
+  --text: #1c1917;
+  --text-muted: #6b6460;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+:root[data-gray="sand"][data-theme="dark"] {
+  --bg: #0c0a09;
+  --surface: #1c1917;
+  --surface-2: #292524;
+  --border: #292524;
+  --border-input: #686665;
+  --text: #fafaf9;
+  --text-muted: #a8a29e;
+  --surface-hover: var(--surface-2);
+  --border-strong: var(--border-input);
+  --accent: var(--text);
+  --accent-fg: var(--bg);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+}

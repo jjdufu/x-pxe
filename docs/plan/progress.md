@@ -80,3 +80,13 @@
 - step10 最终 CI 44289721982（5735139）绿。
 - 用户要求 [pt26u]：把分步方案放进仓库（新增 docs/plan/step-14-manual-iso-netboot.md、docs/plan/progress.md、README 索引加状态列与 step14），与 step11 首个提交一起提交；继续 step11，做完停（不开始 step12）。
 - 从本次起本日志在仓库内同步维护为 docs/plan/progress.md（仓库外副本 /workspace/x-pxe-progress.md 保持一致）。
+
+## 更新 2026-11-18 22:10（step11 完成，按用户要求暂停）
+- 提交（均已普通推送 main）：a5aa6b5（一：WebUI 基座 + 分步方案入库 + xpxe_csrf 双提交 cookie）、
+  随后一个提交（二：画廊排版微调、step-11 偏差表与验收记录、§5 自检截图、README 状态、本日志）。最终 CI 以 HEAD 的 run 为准（见最终报告）。
+- 内容：React 19 + Ark UI 5 + Tailwind v4 基座；Token 契约（4 灰阶 × 2 模式、resolveAccent）；Theme Editor（导出 JSON/CSS）；
+  组件库（Select/Combobox/Menu/Dialog/AlertDialog/Drawer/Toast/DataTable/CommandPalette 等）；应用壳（侧栏、⌘K、SSE 状态、移动抽屉）；
+  四态容器；lib（api/sse/storage/clipboard）；ESLint 约束；组件画廊；完整 scripts/web-gate.sh。
+- 验收：web-gate 全过（Vitest 92、Playwright 60、scan-dist、contrast.mjs）；scripts/gate.sh 全绿；cargo tree -d 空；§5 自检附截图（docs/plan/assets/step-11/）。
+- 偏差见 docs/plan/step-11-webui-foundation.md 第 13 节（Step 10 推迟的管理 API 全部移到 Step 12；8 个业务页为占位页）。
+- 用户决定：第 11 步完成后暂停。第 12 步未开始。续做：docs/plan/step-12-*.md。

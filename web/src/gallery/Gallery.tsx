@@ -124,9 +124,11 @@ export function Gallery() {
             <div className="form-field">
               <MultiCombobox label="时区" options={ZONES} value={zones} onChange={setZones} />
             </div>
-            <Switch checked={on} onChange={setOn} label="启用模块" />
-            <Checkbox checked={checked} onChange={setChecked} label="同意" />
-            <Checkbox checked="indeterminate" onChange={() => undefined} label="部分选中" />
+            <div className="flex flex-wrap items-center gap-4">
+              <Switch checked={on} onChange={setOn} label="启用模块" />
+              <Checkbox checked={checked} onChange={setChecked} label="同意" />
+              <Checkbox checked="indeterminate" onChange={() => undefined} label="部分选中" />
+            </div>
             <NumberField label="超时" unit="分钟" value={timeout} onChange={setTimeoutValue} min={1} max={240} />
           </Card>
         </Grid>

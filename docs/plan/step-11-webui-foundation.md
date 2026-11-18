@@ -241,3 +241,36 @@ cd web && npx vite preview --outDir dist-gallery   # 人工按规范 §5 清单�
 ```
 
 验收标准：`scripts/web-gate.sh` 第 1–10 项全部通过；规范 §5 的五项自检逐项勾选并附截图（Light/Dark 各一组、375 px 一组）。
+
+## 13. 实现偏差（落地记录）
+
+| 计划 | 实现 | 理由 |
+| :--- | :--- | :--- |
+| SPA 只依赖登录响应里的 `csrf_token` | 后端登录/登出额外下发非 HttpOnly 的 `xpxe_csrf` cookie（双提交），`lib/api.ts` 从 cookie 读取并在非安全方法上发送 `X-CSRF-Token`；e2e `security` 断言该 cookie 存在且不带 HttpOnly | 服务端只存令牌哈希，页面刷新后前端无法恢复令牌 |
+| Step 10 推迟到 Step 11/12 的管理 API | 本步不实现，全部移到 Step 12；壳与各页只调用已有端点（`/me`、`/bootnet/status`、`/nodes`、SSE） | Step 11 只交付基座，业务页面在 Step 12 落地 |
+| 各业务页面 | 除节点列表（DataTable）外，其余 8 页为占位页（标题 + 四态容器，按端点拉取） | 同上；占位页保证四态/移动端/离线门禁覆盖全部路由 |
+| 四态“截图对比” | Playwright 对每页每态断言 DOM（骨架 `role=status`、空态、错误码 + “重新加载”可恢复），截图保存为测试产物，不做像素比对 | 本机与 CI 字体渲染不同，像素基线不稳定 |
+| DataTable 复选框用 Ark Checkbox | 原生 `<input type=checkbox>`（`indeterminate` 由 ref 设置，tbody 事件委托） | 大表格下性能与可访问性更好；样式由 `ark.css` 统一 |
+| CommandPalette 用 Ark Combobox | Ark Dialog + 自写 combobox/listbox（`aria-activedescendant`，分组标题） | Ark Combobox 不支持分组标题与跳转型条目混排 |
+| Steps 用 Ark Steps | `<ol>` 有序列表 | Ark Steps 输出 tablist 语义，axe 报 ARIA 错误 |
+| CopyButton 用 Ark Clipboard | `lib/clipboard.ts`（`navigator.clipboard`，失败回退 `execCommand`） | 统一剪贴板入口，便于 ESLint 约束 |
+| Combobox 默认行为 | `inputBehavior="autohighlight"`、`selectionBehavior="clear"`、点击即展开、输入框非受控 | 多选时键入即高亮首项、Enter 选中后清空输入，键盘路径最短 |
+| 语义色 | 浅色 success `#166534`、warning `#92400e`（原值在 `surface-2` 上不足 4.5）；深色 `#4ade80`/`#fbbf24`；徽章改用语义色变量 | `contrast.mjs` 实测 |
+| `scan-dist` 零外链 | 白名单：`w3.org`（SVG 命名空间）、`react.dev/errors`、`reactrouter.com`、精确 `http://localhost`（React Router 内部基址）；Tailwind 许可横幅中的 URL 由 Vite 插件剥离 | 这些是库内字符串常量，不发起请求；离线门禁另行断言零外部请求 |
+| `eslint-plugin-react` | 未引入；原生 `<select>`、`asChild` 等用 `no-restricted-syntax` 禁止 | 该插件与 ESLint 10 存在 peer 冲突 |
+| ESLint API 约束 | 测试与 e2e 文件不受“裸 `localStorage`/`addEventListener`/clipboard”规则约束（仍禁原生 select 等） | 测试需要直接打桩这些 API |
+| 跳转胶囊（jump-pill） | 未实现 | 无长页面需求，留给 Step 12 按页面需要补 |
+| 画廊入口 | `vite build --mode gallery` 输出 `dist-gallery/`（`index.html` + `gallery.html`），生产 `dist/` 只含 `index.html` | 画廊不进入生产产物 |
+| 主题初始化防闪烁 | 外置 `/theme-boot.js`（读 `xpxe.theme.v1`，失败回退默认） | 后端 CSP `default-src 'self'` 禁内联脚本 |
+| 包体积 | 生产主包约 560 kB（gzip 170 kB），Vite 提示 >500 kB，未做代码分割 | 内网单页应用；Step 12 业务页面落地时按路由懒加载 |
+
+### 验收记录（2026-11-18 Asia/Shanghai）
+
+- `scripts/web-gate.sh` 第 1–10 项全部通过：typecheck、lint（0 警告）、Vitest 92 项、构建、`scan-dist`、`contrast.mjs`（3.5 节全部组合与实测表一致）、画廊构建、Playwright 60 项（离线零外联与 CSP、9 页 × 4 态 + 重新加载恢复、375/767 px 无横向溢出与移动抽屉、键盘全流程与 80 个 Tab 停靠点焦点环、4 灰阶 × 2 模式 × 7 Accent × 3 圆角 axe 对比度、画廊与 /nodes 深浅色 WCAG 2 A/AA）。
+- `scripts/gate.sh`（Rust）全绿，`cargo tree -d` 为空。
+- 规范 §5 自检：
+  - [x] Light / Dark 主按钮、边框、输入框、弹窗文字对比度达标（axe + `contrast.mjs`）。截图：[nodes-light](./assets/step-11/nodes-light.png)、[nodes-dark](./assets/step-11/nodes-dark.png)、[gallery-light](./assets/step-11/gallery-light.png)、[gallery-dark](./assets/step-11/gallery-dark.png)。
+  - [x] 零原生 `<select>`（ESLint + `scan-dist`），零外部网络依赖（离线 e2e）。
+  - [x] Tab/↑/↓/Enter/ESC 操作下拉、命令面板、弹窗、抽屉，保留 `:focus-visible` 环（keyboard e2e）。
+  - [x] Populated/Empty/Loading/Error 四态全覆盖（states e2e）。
+  - [x] 语法/类型/构建零报错；<768 px 无横向溢出。截图：[nodes-375](./assets/step-11/nodes-375.png)、[nodes-375-drawer](./assets/step-11/nodes-375-drawer.png)。

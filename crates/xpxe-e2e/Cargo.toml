@@ -21,11 +21,10 @@ xpxe-domain.workspace = true
 xpxe-assets.workspace = true
 xpxe-dhcp.workspace = true
 xpxe-store.workspace = true
+xpxe-redfish.workspace = true
 xpxe-test-support.workspace = true
 tokio.workspace = true
 serde_json.workspace = true
 rustls.workspace = true
 tokio-rustls.workspace = true
 
-[dev-dependencies]
-xpxe-redfish.workspace = true

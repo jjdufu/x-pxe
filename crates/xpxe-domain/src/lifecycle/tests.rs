@@ -677,6 +677,23 @@ fn arm_effects() -> TestResult {
     Ok(())
 }
 
+/// 安装器启动后弹出 Redfish 虚拟介质。
+///
+/// # Errors
+///
+/// 副作用不符时返回错误。
+#[test]
+fn installer_started_ejects_media() -> TestResult {
+    let armed = at(NodeState::Armed)?;
+    let envelope = event_for(&armed, NodeEventKind::InstallerStarted)?;
+    let transition = apply(&armed, &envelope, T0, &Ttl::standard())?;
+    ensure(
+        transition.effects.contains(&Effect::EjectMedia),
+        "installer.started 弹出介质",
+    )?;
+    Ok(())
+}
+
 /// 从持久化字段恢复的运行态与原运行态行为一致。
 ///
 /// # Errors

@@ -919,8 +919,10 @@ fn installer_started(
         NodeState::Installing,
         now,
         ttl,
+        // 安装器已从 ISO 启动并载入内存，Redfish 虚拟介质此时即可弹出（LAN 节点由执行方忽略）。
         vec![
             Effect::PublishDirectives,
+            Effect::EjectMedia,
             Effect::Audit(AuditKind::InstallStarted),
         ],
     ))

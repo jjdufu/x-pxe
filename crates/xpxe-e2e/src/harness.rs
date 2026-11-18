@@ -170,6 +170,12 @@ impl Harness {
         let options = Options {
             clock: shared,
             poll: Duration::from_millis(50),
+            redfish_timing: xpxe_redfish::Timing {
+                request: Duration::from_secs(5),
+                insert: Duration::from_secs(2),
+                task: Duration::from_secs(2),
+                poll: Duration::from_millis(20),
+            },
             ..Options::default()
         };
         let app =

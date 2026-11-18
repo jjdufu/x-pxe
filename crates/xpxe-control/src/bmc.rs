@@ -385,9 +385,15 @@ pub(crate) async fn deploy(
     let mut events = Vec::new();
     let result = session.deploy(&target, &url, &mut events).await;
     let _closed = session.close().await;
-    let steps: Vec<Value> = events
-        .iter()
-        .map(|event| json!({ "step": event.step, "ok": event.ok, "detail": event.detail }))
+    // 第 1 步（前置检查：Armed、指纹已固定、ISO 已生成）由控制面完成；第 2–6 步来自 Session::deploy；
+    // 第 7 步 EjectMedia 在 installer.started 之后由发件箱执行。
+    let first = json!({ "step": "precheck", "ok": true, "detail": format!("Armed，指纹已固定，ISO {url}") });
+    let steps: Vec<Value> = std::iter::once(first)
+        .chain(
+            events
+                .iter()
+                .map(|event| json!({ "step": event.step, "ok": event.ok, "detail": event.detail })),
+        )
         .collect();
     for step in &steps {
         app.push(

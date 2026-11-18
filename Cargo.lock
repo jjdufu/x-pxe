@@ -1466,6 +1466,22 @@ dependencies = [
 [[package]]
 name = "xpxe-redfish"
 version = "0.1.0"
+dependencies = [
+ "base64",
+ "bytes",
+ "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "rustls",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tokio-rustls",
+ "xpxe-test-support",
+]
 
 [[package]]
 name = "xpxe-render"

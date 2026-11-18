@@ -40,4 +40,5 @@ pub use value::{
 pub use versioning::{
     CanonicalJson, Change, ChangeValue, ConfigDocument, ConfigError, ConfigKind, FieldError,
     Secret, Timeouts, ValidationError, canonical_json, content_sha256, content_sha256_hex, diff,
+    field_error, migrate_current,
 };

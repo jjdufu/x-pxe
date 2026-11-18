@@ -1,0 +1,14 @@
+# x-pxe 信任的 Debian 签名密钥。每行：<v4 指纹> <过期时间 RFC 3339 或 -> <说明>
+# 指纹已与 https://ftp-master.debian.org/keys.html 及 https://www.debian.org/CD/verify 公布值核对（2026-11-18）。
+# 变更本文件必须单独提交，并在提交说明中写明核对来源。
+04B54C3CDCA79751B16BC6B5225629DF75B188BD 2035-03-28T12:50:29Z Debian Archive Automatic Signing Key (13/trixie) 主钥
+B8E5F13176D2A7A75220028078DBA3BC47EF2265 2035-03-28T12:50:29Z Debian Archive Automatic Signing Key (13/trixie) 签名子钥
+5E04A1E3223A19A20706E20F9904613D4CCE68C6 2035-03-28T12:51:41Z Debian Security Archive Automatic Signing Key (13/trixie) 主钥
+89C87ACEA5DD6B8E6A7068808E9F831205B4BA95 2035-03-28T12:51:41Z Debian Security Archive Automatic Signing Key (13/trixie) 签名子钥
+41587F7DB8C774BCCF131416762F67A0B2C39DE4 2033-03-22T18:56:21Z Debian Stable Release Key (13/trixie)
+B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8 2031-01-19T11:44:21Z Debian Archive Automatic Signing Key (12/bookworm) 主钥
+4CB50190207B4758A3F73A796ED0E7B82643E131 2031-01-19T11:44:21Z Debian Archive Automatic Signing Key (12/bookworm) 签名子钥
+05AB90340C0C5E797F44A8C8254CF3B5AEC0A8F0 2031-01-19T11:45:33Z Debian Security Archive Automatic Signing Key (12/bookworm) 主钥
+B0CAB9266E8C3929798B3EEEBDE6D2B9216EC7A8 2031-01-19T11:45:33Z Debian Security Archive Automatic Signing Key (12/bookworm) 签名子钥
+4D64FEC119C2029067D6E791F8D2585B8783D481 2031-01-21T16:44:03Z Debian Stable Release Key (12/bookworm)
+DF9B9C49EAA9298432589D76DA87E80D6294BE9B - Debian CD signing key（firmware SHA256SUMS.sign）

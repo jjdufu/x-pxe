@@ -248,6 +248,22 @@ impl<'store> Assets<'store> {
             Err(StoreError::NotFound("资产"))
         }
     }
+
+    /// 删除资产记录（调用方负责先确认无引用并删除文件）。
+    ///
+    /// # Errors
+    ///
+    /// 资产不存在或写入失败时返回错误。
+    pub fn delete(self, asset_id: i64) -> StoreResult<()> {
+        let changed = self
+            .store
+            .write(|tx| Ok(tx.execute("DELETE FROM assets WHERE id = ?1", [asset_id])?))?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(StoreError::NotFound("资产"))
+        }
+    }
 }
 
 /// 资产查询的公共列。

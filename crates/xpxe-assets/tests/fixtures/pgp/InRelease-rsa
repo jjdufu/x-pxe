@@ -1,0 +1,26 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: x-pxe test
+Label: x-pxe test
+Suite: stable
+Codename: trixie
+Date: Wed, 18 Nov 2026 06:00:00 UTC
+Architectures: amd64
+Components: main
+Description: test release   
+SHA256:
+ 31a1a4fc99c5b0a729d261f137cd7e1599bfa6f214f83fe4e596543d8ccf2dec 80699 main/installer-amd64/current/images/SHA256SUMS
+ 0000000000000000000000000000000000000000000000000000000000000000 1 main/other
+- - dashed line
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEEyA3qvAhI7fgIwSrmHj0SjmHYT8gFAmr9RG0ACgkQHj0SjmHY
+T8ik/gf8CBCAb31curUNRs7M8LCnqImMpJQLGKEmy4qpg8U5wFH5SzPOJ7V951I5
+SNx+cwInndc5qZnRMkoPWeSxxG9s8ay2r4zPZiI9fN1Pl3kMjjmoBLh0obM7U2qQ
+/GfzH0OquaBzuLYrC/CLO7TCzjzUvR3Dm4yXLruu4s4T40dH3Olr4rr6KZlXYHX9
+bh9KRon1nt/jJ9pMtEDlIMlHbz1ipG+nKEC69m0nWDy1IpLUXdEw9M2scryRw3Iv
+qByRR1luUA5EUlwoXR9kADUneD9W08g87Hgc6xrOpwVpEMNTTsEh022UmlfMvHl4
+L3DW9gZJJ5leNUO0I0SaiuWBhUNibg==
+=h9Oc
+-----END PGP SIGNATURE-----

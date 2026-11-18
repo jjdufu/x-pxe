@@ -1,0 +1,22 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: x-pxe test
+Label: x-pxe test
+Suite: stable
+Codename: trixie
+Date: Wed, 18 Nov 2026 06:00:00 UTC
+Architectures: amd64
+Components: main
+Description: test release   
+SHA256:
+ 31a1a4fc99c5b0a729d261f137cd7e1599bfa6f214f83fe4e596543d8ccf2dec 80699 main/installer-amd64/current/images/SHA256SUMS
+ 0000000000000000000000000000000000000000000000000000000000000000 1 main/other
+- - dashed line
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQT71A7Czg77Emsyufbrs6sb6Gu4uQUCav1EbQAKCRDrs6sb6Gu4
+ucXBAQDGqYNUVxppKKLMW8MZbD4dTlc+ysVADrS9XO3+lpaWnQEA1/UtPyUuoLpe
+HSa4iI+fh/HyZbpcs6az9pkPQujDJwk=
+=FnnR
+-----END PGP SIGNATURE-----

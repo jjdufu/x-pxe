@@ -42,6 +42,7 @@ fn armed(store: &Store) -> TestResult<(i64, xpxe_store::IssuedSession)> {
                 profile: timeouts,
                 init_plan: None,
                 asset_channels: None,
+                canary_assets: Vec::new(),
             },
             ttl: Duration::from_hours(2),
         },

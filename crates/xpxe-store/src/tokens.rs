@@ -9,7 +9,7 @@ use xpxe_domain::{BootToken, SessionId, Timestamp};
 
 use crate::config::VersionRef;
 use crate::sqlval::{
-    ct_eq, exec, parse_opt_ts, parse_ts, query_opt, random, random_token, sha256_hex, ts,
+    ct_eq, exec, parse_opt_ts, parse_ts, query_opt, query_vec, random, random_token, sha256_hex, ts,
 };
 use crate::{Store, StoreError, StoreResult, expired};
 
@@ -104,6 +104,9 @@ pub struct Pinned {
     pub init_plan: Option<VersionRef>,
     /// 资产频道版本。
     pub asset_channels: Option<VersionRef>,
+    /// 金丝雀会话以候选资产覆盖频道（资产 ID）；普通会话为空。
+    #[serde(default)]
+    pub canary_assets: Vec<i64>,
 }
 
 /// 新建装机会话的参数。
@@ -308,6 +311,34 @@ impl<'store> Tokens<'store> {
                 [session.as_str(), ts(now)?.as_str(), outcome],
             )? == 1)
         })
+    }
+
+    /// 未关闭且未过期的会话所固定的版本（删除资产前检查引用）。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败或固定内容损坏时返回错误。
+    pub fn open_pins(self, now: Timestamp) -> StoreResult<Vec<Pinned>> {
+        let rows = self.store.read(|conn| {
+            query_vec(
+                conn,
+                "SELECT pinned, expires_at FROM install_sessions WHERE closed_at IS NULL",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        parse_ts(&row.get::<_, String>(1)?)?,
+                    ))
+                },
+            )
+        })?;
+        let mut pins = Vec::with_capacity(rows.len());
+        for (text, expires_at) in rows {
+            if !expired(expires_at, now) {
+                pins.push(serde_json::from_str(&text)?);
+            }
+        }
+        Ok(pins)
     }
 
     /// 读取会话记录。

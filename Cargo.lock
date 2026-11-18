@@ -1330,8 +1330,27 @@ name = "xpxe-assets"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "bytes",
+ "flate2",
  "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "lzma-rs",
+ "ring",
+ "rustls",
+ "serde",
+ "serde_json",
  "sha1",
+ "sha2",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "webpki-roots",
+ "xpxe-domain",
+ "xpxe-store",
  "xpxe-test-support",
 ]
 

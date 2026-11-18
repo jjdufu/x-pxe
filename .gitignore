@@ -14,6 +14,9 @@
 # iPXE 等二进制固件不入库：通过 WebUI 下载或上传
 *.efi
 *.kpxe
+# 例外：xpxe-assets 的格式检查夹具（真实 iPXE 二进制，计划第 5 节要求）
+!crates/xpxe-assets/tests/fixtures/ipxe/*.efi
+!crates/xpxe-assets/tests/fixtures/ipxe/*.kpxe
 *.iso
 *.img
 *.qcow2

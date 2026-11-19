@@ -255,6 +255,12 @@ sc_H() {
   for f in "${ACC}/installed-A" "${ACC}/installed-B"; do
     [ -f "$f" ] || continue
     while read -r node vm ip mac; do
+      # 分批运行时 A/B 的虚拟机可能已被关掉：按 vm.sh 记录的命令行重新开机（引导顺序仍是网络优先）
+      if ! { [ -f "${vm}/qemu.pid" ] && kill -0 "$(cat "${vm}/qemu.pid")" 2> /dev/null; }; then
+        [ -f "${vm}/cmdline" ] || continue
+        rm -f "${vm}/mon.sock"; bash -c "$(cat "${vm}/cmdline")" < /dev/null > /dev/null 2>&1 || continue
+        wait_ssh "${mac}" 1200 > /dev/null || true
+      fi
       [ -S "${vm}/mon.sock" ] || continue
       local k
       for k in 1 2 3; do

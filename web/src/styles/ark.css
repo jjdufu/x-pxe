@@ -159,3 +159,5 @@ input.ui-checkbox:focus-visible { box-shadow: var(--ring); outline: none; }
 .steps-bar, .timeline-list { list-style: none; margin: 0; }
 .steps-bar { padding: 0; }
 .step-item { display: flex; align-items: center; gap: 8px; cursor: default; font-size: 12.5px; }
+/* 选中卡片底色为 accent-soft：中性/石板等低饱和 accent 在深色模式下与 --text-muted 对比不足 4.5:1，改用正文色 */
+.radio-card[data-state="checked"] .radio-card-sub, .radio-card.selected .radio-card-sub { color: var(--text); }

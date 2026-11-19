@@ -350,12 +350,13 @@ sc_L() {
   # 产品语义：ProxyDHCP 模式下 bootnet 周期探测现网；发现下发 next-server/filename 的服务器即暂停应答（health=conflict），
   # 管理员确认（acknowledge，写审计）前不恢复 ProxyDHCP 应答。
   set_bootnet proxy_dhcp > /dev/null || true
-  local node mac; mac="$(mac_of f1)"
+  local node mac; mac="$(mac_of f5)"
   node="$(register_node acc-l "${mac}" uefi)"; api POST "/nodes/${node}/arm" '{}' > /dev/null
   "${LAB_DIR}/dhcp.sh" start rogue > /dev/null
-  api POST /bootnet/scan '{}' > "${D}/scan.json" || true
+  sleep 8   # 等 lab-rogue 的 Kea 开始应答，再请求探测
   local st i
   for i in $(seq 1 30); do
+    [ $((i % 5)) = 1 ] && api POST /bootnet/scan '{}' >> "${D}/scan.json"
     st="$(api GET /bootnet/status | jq -c '.heartbeat.heartbeat | {health,detail,conflicts:(.probe.conflicts // [])}')"
     grep -q 10.77.0.3 <<< "${st}" && break; sleep 2
   done
@@ -479,7 +480,10 @@ YAML
   "${COMPOSE[@]}" up -d --wait control >> "${ACC}/compose.log" 2>&1
   # 一次性 preseed：arm 后取两次，第二次 410
   local node tok; node="$(register_node acc-p "$(mac_of f1)" uefi)"; api POST "/nodes/${node}/arm" '{}' > /dev/null
-  tok="$(curl -s "${BASE}/boot/mac/$(mac_of f1 | tr ':' '-')" | sed -nE 's#.*(/p/[^/ ]+)/.*#\1#p' | head -1)"
+  local i; for i in $(seq 1 15); do
+    tok="$(curl -s "${BASE}/boot/mac/$(mac_of f1 | tr ':' '-')" | sed -nE 's#.*(/p/[^/ ]+)/.*#\1#p' | head -1)"
+    [ -n "${tok}" ] && break; sleep 2
+  done
   local c1 c2
   c1="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}${tok}/preseed.cfg")"; c2="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}${tok}/preseed.cfg")"
   [ "${c1}" = 200 ] && [ "${c2}" = 410 ] && check "preseed 一次性" 0 "第一次 200，第二次 410" || check "preseed 一次性" 1 "${c1} / ${c2}（会话路径 ${tok:-无}）"

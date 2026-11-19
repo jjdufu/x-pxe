@@ -90,3 +90,12 @@
 - 验收：web-gate 全过（Vitest 92、Playwright 60、scan-dist、contrast.mjs）；scripts/gate.sh 全绿；cargo tree -d 空；§5 自检附截图（docs/plan/assets/step-11/）。
 - 偏差见 docs/plan/step-11-webui-foundation.md 第 13 节（Step 10 推迟的管理 API 全部移到 Step 12；8 个业务页为占位页）。
 - 用户决定：第 11 步完成后暂停。第 12 步未开始。续做：docs/plan/step-12-*.md。
+
+## 更新 2026-11-18 22:20 America/Denver（step12 完成，按用户要求暂停）
+- 提交（普通推送 main）：e901cc7（一：WebUI 所需管理端点）、c2d32a1（二：xpxe-lab simulate-install 与 webui-stack 联调栈）、
+  其后三个提交（三：全部业务页面；四：页面/联调 e2e 与门禁调整；五：偏差表、验收记录、§5 截图、README 状态、本日志）。最终 CI 以 HEAD 的 run 为准（见最终报告）。
+- 内容：登录/强制改密、总览、节点（搜索/方向键选行/行菜单/抽屉/从观测导入）、Profile 与初始化计划编辑器（草稿、实时预览、差异、保存说明、409 重做）、
+  引导网络（模式/网卡/探测/冲突确认/DHCP 片段）、资产（获取/上传/激活/回滚/删除）、配置历史（对比/回滚）、审计（过滤/分页/校验链/导出）、设置（口令/会话/令牌/用户/超时/启动配置/主题）。
+- 验收：scripts/gate.sh 全绿；web-gate：Vitest 92、Playwright 65（本机深色对比度 4 组为既有环境问题，CI 绿）；integration.spec.ts 8 步通过；§5 截图在 docs/plan/assets/step-12/。
+- 偏差见 docs/plan/step-12-webui-pages.md 第 7 节。
+- 用户决定：第 12 步完成后暂停。第 13 步未开始。续做：docs/plan/step-13-*.md。

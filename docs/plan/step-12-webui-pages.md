@@ -147,3 +147,40 @@ cd web && npx playwright test e2e/integration.spec.ts
 - `scripts/web-gate.sh` 全绿：每个页面四态、键盘流程（每页至少一条：节点页“搜索 → 方向键选行 → 菜单 → arm → AlertDialog 确认”；Profile 页“Tab 到 Select → ↑↓ → Enter → 预览更新”）、375/767 px 无横向溢出。
 - 联调脚本 8 步全部通过。
 - 规范 §5 自检清单逐项勾选并附截图。
+
+## 7. 实现偏差（落地记录）
+
+| 计划 | 实现 | 理由 |
+| :--- | :--- | :--- |
+| 联调第 2 步“上传 iPXE 与 Debian 夹具资产” | iPXE 夹具（`crates/xpxe-assets/tests/fixtures/ipxe/`）经页面“上传文件”上传并激活；Debian netboot 由启动器 `webui-stack` 预先暂存为候选版本，页面只做激活 | 浏览器无法携带 Debian 夹具所需的签名链（Release/InRelease + SHA256SUMS），离线模式下只能走服务端暂存 |
+| 激活走金丝雀 | 激活对话框要求填写“跳过金丝雀的理由”（为空时确认按钮不可用），请求体携带 `skip_canary_reason`，后端记入审计 | 后端金丝雀流程尚未实现（Step 7 偏差），页面按跳过路径落地 |
+| 联调 Profile 使用预设镜像源 | 联调脚本把镜像源主机改为启动器的 mock mirror，目录 `/debian` | arm 前置检查要求镜像源与已激活 netboot 对齐，否则 `ALIGNMENT_UNAVAILABLE` |
+| 联调启动方式“Step 10 冒烟方式” | 新增 `xpxe-e2e` 二进制 `webui-stack`（控制面 + mock mirror + 预置资产，写出 `stack.json`），Playwright `webServer` 启动；集成模式由命令行含 `integration` 触发 | 复用 `xpxe-e2e` 编排库，避免在 `xpxe-lab` 里重复一套控制面启动逻辑；`xpxe-lab` 只新增 `simulate-install` 子命令 |
+| 引导网络冲突“确认”持久化 | 确认结果只存在于 bootnet 运行态，重启后需重新确认 | 后端 `acknowledge` 端点为内存态（Step 10 偏差） |
+| 初始化模块表单按模块 schema 渲染 | 按模块默认设置的值类型推断控件（布尔→Switch、数字→数字输入、字符串数组→列表输入、字符串→输入框），复杂嵌套设置以 JSON 编辑 | 模块目录未导出 JSON Schema；推断覆盖全部现有模块的简单字段 |
+| Profile 全部字段表单化 | 账户、自定义分区、额外 APT 源以 JSON 文本编辑（带服务端字段级错误定位） | 结构嵌套深、出现频率低；先保证可编辑与校验，表单化留作后续 |
+| 区域设置用 Combobox | 语言环境、键盘布局、时区为普通输入框；审计页操作者过滤用 Select | 无离线的区域/时区枚举数据源；操作者取自用户列表，数量少 |
+| 节点删除、会话日志 | 无删除操作（后端无 `DELETE /nodes`）；抽屉“会话日志”由事件载荷拼出 | 后端未提供对应端点 |
+| 资产页每张卡片的空态 | 资产为空时整页一个全局空态；卡片内显示“尚未激活任何版本” | 四态容器按查询粒度工作，资产是一次查询 |
+| 资产获取进度条 | 不显示流式进度，获取期间按钮忙碌态，完成后 Toast | 后端获取接口为同步请求，无进度事件 |
+| 表格右键菜单 | DataTable 右键改为按坐标定位的受控 `PointMenu`（Ark Menu + `getAnchorRect`），不再用包裹整张表的 ContextMenu 触发器 | 包裹触发器会吞掉行点击，并把行内操作菜单变成子菜单 |
+| — | DataTable 在 tbody 捕获阶段处理 ↑/↓：焦点在行操作按钮上时移动到上/下一行 | Ark Menu 触发器在冒泡阶段把 ↓ 当作“打开菜单”，验收要求方向键选行 |
+| — | Select 按选项内容签名缓存 collection | 父组件每次渲染传入新数组会重建 collection，展开中的列表丢失高亮 |
+| — | SSE 在连接进入 CLOSED（如 401/403）后每 5 s 重连；强制改密期间不渲染页面内容 | EventSource 遇到 401/403 不会自动重连；改密前业务请求一律 403 |
+| — | 键盘 e2e（Select/Menu 与两条页面流程）在按方向键/Enter 前等待焦点进入浮层 | Ark 打开后异步聚焦，按键过早时偶发丢失（step-11 起即有的偶发失败） |
+| `scan-dist` 白名单 | 增加 React Router `useSearchParams` 警告文案中的 `github.com/ungap/url-search-params`；资产 URL 输入框占位符不再写 `https://` 字面量 | 库内字符串常量，不发起请求 |
+| 本机门禁 | 本机 Playwright 的 `contrast.spec.ts` 深色 4 组（zinc/neutral/sand 等）在 HEAD（step-11）上同样失败，CI 通过；以 CI 结果为准 | 本机 headless 渲染与 CI 不一致，非本步引入 |
+
+### 验收记录（2026-11-18 America/Denver）
+
+- `scripts/gate.sh`（Rust）全绿。
+- `scripts/web-gate.sh`：typecheck、lint（0 警告）、Vitest 92 项、构建、`scan-dist`（26 个文件）、`contrast.mjs`、画廊构建通过；Playwright 默认项目 65 项（9 页 × 4 态 + 重新加载恢复、375/767 px 无横向溢出、节点页与 Profile 页键盘流程、Profile 预览实时变化、计划编辑器、引导网络片段 Tabs、离线零外联）本机除上表所述对比度用例外全部通过，CI 全绿。
+- `cd web && npx playwright test e2e/integration.spec.ts`：8 步全部通过（约 25 s）。
+- 规范 §5 自检：
+  - [x] Light / Dark 对比度达标（axe + `contrast.mjs`）。截图：[nodes-light](./assets/step-12/nodes-light.png)、[nodes-dark](./assets/step-12/nodes-dark.png)、[profile-editor-light](./assets/step-12/profile-editor-light.png)、[profile-editor-dark](./assets/step-12/profile-editor-dark.png)、[assets-light](./assets/step-12/assets-light.png)、[assets-dark](./assets/step-12/assets-dark.png)。
+  - [x] 零原生 `<select>`（ESLint + `scan-dist`），零外部网络依赖（离线 e2e）。
+  - [x] Tab/↑/↓/Enter/ESC 操作下拉、菜单、弹窗，保留焦点环（keyboard e2e + pages e2e）。截图：[nodes-arm-dialog](./assets/step-12/nodes-arm-dialog.png)。
+  - [x] Populated/Empty/Loading/Error 四态覆盖全部页面（states e2e）。其余页面截图：[overview](./assets/step-12/overview-light.png)、[init-plan-editor](./assets/step-12/init-plan-editor-light.png)、[boot-network](./assets/step-12/boot-network-light.png)、[history](./assets/step-12/history-light.png)、[audit](./assets/step-12/audit-light.png)、[settings](./assets/step-12/settings-light.png)。
+  - [x] 语法/类型/构建零报错；<768 px 无横向溢出。截图：[nodes-375](./assets/step-12/nodes-375.png)、[nodes-767](./assets/step-12/nodes-767.png)、[profile-editor-375](./assets/step-12/profile-editor-375.png)、[profile-editor-767](./assets/step-12/profile-editor-767.png)。
+  - 截图由离线 mock 数据（`e2e/mock-data.json`，取自真实控制面输出并去除口令哈希）渲染。
+

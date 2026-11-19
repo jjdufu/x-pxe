@@ -13,6 +13,8 @@ mod envelope;
 #[cfg(test)]
 mod install;
 #[cfg(test)]
+mod isos;
+#[cfg(test)]
 mod outbox;
 #[cfg(test)]
 mod support;

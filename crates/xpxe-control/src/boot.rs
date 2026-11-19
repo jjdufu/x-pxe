@@ -29,7 +29,7 @@ pub(crate) fn ipxe(text: String) -> Response {
 /// `exit` 脚本。
 fn exit_script(reason: &str) -> Response {
     ipxe(format!(
-        "#!ipxe\necho x-pxe: not armed: {reason}\nsleep 3\nexit\n"
+        "#!ipxe\necho x-pxe: not armed: {reason}\nsleep 3\nexit 1\n"
     ))
 }
 

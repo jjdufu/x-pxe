@@ -7,4 +7,4 @@ boot || goto failed
 :failed
 echo x-pxe: boot failed, falling back to local disk in 10 s
 sleep 10
-exit
+exit 1

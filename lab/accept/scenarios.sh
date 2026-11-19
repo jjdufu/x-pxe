@@ -303,7 +303,8 @@ sc_J() {
   local n1; n1="$(register_node acc-j-arm "$(mac_of a1)" uefi)"; api POST "/nodes/${n1}/arm" '{}' > /dev/null
   sleep 90
   local s1; s1="$(node_state "${n1}")"
-  timeline "${n1}" | grep -q 'DeadlineExpired\|deadline' && check "arm_ttl" 0 "arm 后不开机 → ${s1}，事件含 DeadlineExpired" || check "arm_ttl" 1 "状态 ${s1}"
+  timeline "${n1}" | jq -e 'select(.kind=="deadline_expired" and .from_state=="armed")' > /dev/null \
+    && check "arm_ttl" 0 "arm 后不开机 → ${s1}，事件 deadline_expired（armed → ${s1}）" || check "arm_ttl" 1 "状态 ${s1}"
   # 第二段：arm_ttl 放宽到 900 s（TCG 下固件到 PXE 就要一两分钟），install_ttl 保持 300 s
   set_timeouts 900 300 1800 3600 > /dev/null
   local n2; n2="$(register_node acc-j-install "$(mac_of a2)" uefi)"; api POST "/nodes/${n2}/arm" '{}' > /dev/null
@@ -311,7 +312,9 @@ sc_J() {
   if wait_state "${n2}" "${BOOT_TIMEOUT}" installing; then sudo ip link set tap3 down; fi
   sleep 360
   local s2; s2="$(node_state "${n2}")"
-  timeline "${n2}" | grep -q 'DeadlineExpired\|deadline' && check "install_ttl" 0 "安装中断开 tap → ${s2}，事件含 DeadlineExpired" || check "install_ttl" 1 "状态 ${s2}"
+  timeline "${n2}" | jq -e 'select(.kind=="deadline_expired" and .from_state=="installing")' > /dev/null \
+    && check "install_ttl" 0 "安装中断开 tap → ${s2}，事件 deadline_expired（installing → ${s2}）" \
+    || check "install_ttl" 1 "状态 ${s2}：$(timeline "${n2}" | jq -r '"\(.kind) \(.from_state)→\(.to_state)"' | tr '\n' ';')"
   sudo ip link set tap3 up; vm_stop "${vm}"
   set_timeouts 7200 5400 1800 3600 > /dev/null
 }

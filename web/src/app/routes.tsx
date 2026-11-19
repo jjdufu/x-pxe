@@ -10,6 +10,7 @@ const ProfileEditorPage = lazy(() => import("./pages/configs/ProfileEditor").the
 const PlanEditorPage = lazy(() => import("./pages/configs/PlanEditor").then((module) => ({ default: module.PlanEditorPage })));
 const BootNetworkPage = lazy(() => import("./pages/bootnet/BootNetworkPage").then((module) => ({ default: module.BootNetworkPage })));
 const AssetsPage = lazy(() => import("./pages/assets/AssetsPage").then((module) => ({ default: module.AssetsPage })));
+const BootMenuPage = lazy(() => import("./pages/bootmenu/BootMenuPage").then((module) => ({ default: module.BootMenuPage })));
 const HistoryPage = lazy(() => import("./pages/admin/HistoryPage").then((module) => ({ default: module.HistoryPage })));
 const AuditPage = lazy(() => import("./pages/admin/AuditPage").then((module) => ({ default: module.AuditPage })));
 const SettingsPage = lazy(() => import("./pages/admin/SettingsPage").then((module) => ({ default: module.SettingsPage })));
@@ -63,6 +64,7 @@ export const routes: RouteObject[] = [
       { path: "init-plans/:id", element: <PlanEditorPage /> },
       { path: "boot-network", element: <BootNetworkPage /> },
       { path: "assets", element: <AssetsPage /> },
+      { path: "boot-menu", element: <BootMenuPage /> },
       { path: "history", element: <HistoryPage /> },
       { path: "audit", element: <AuditPage /> },
       { path: "settings", element: <SettingsPage /> },

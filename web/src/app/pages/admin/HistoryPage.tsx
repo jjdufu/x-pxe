@@ -14,7 +14,7 @@ import { AsyncView } from "../../AsyncView";
 import { errorText, useAction, useHistory } from "../../data";
 import { DiffContent } from "../configs/shared";
 
-const KIND_LABEL: Record<string, string> = { profile: "Profile", init_plan: "初始化计划", boot_network: "引导网络", dhcp_rules: "DHCP 规则", timeouts: "装机超时", node_spec: "节点规格" };
+const KIND_LABEL: Record<string, string> = { profile: "Profile", init_plan: "初始化计划", boot_network: "引导网络", dhcp_rules: "DHCP 规则", timeouts: "装机超时", node_spec: "节点规格", boot_menu: "手动引导菜单" };
 const keyOf = (row: HistoryRow) => `${row.kind}:${String(row.object_id)}:${String(row.version)}`;
 
 function CompareDialog({ pair, onClose }: { pair: [HistoryRow, HistoryRow] | null; onClose: () => void }) {

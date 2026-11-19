@@ -386,6 +386,12 @@ sc_L() {
   "${LAB_DIR}/dhcp.sh" stop rogue > /dev/null
   api POST "/nodes/${node}/disarm" '{}' > /dev/null || true
   api POST /bootnet/acknowledge '{"servers":[]}' > /dev/null || true
+  # 清掉确认后 bootnet 用最近一次（含 lab-rogue 的）探测结果重新评估会再次暂停；lab-rogue 已停，重新探测直到恢复
+  for i in $(seq 1 20); do
+    [ $((i % 5)) = 1 ] && api POST /bootnet/scan '{}' > /dev/null
+    [ "$(api GET /bootnet/status | jq -r .heartbeat.heartbeat.health)" = ok ] && break; sleep 2
+  done
+  [ "$(api GET /bootnet/status | jq -r .heartbeat.heartbeat.health)" = ok ] || check "收尾" 1 "lab-rogue 停止后 bootnet 未恢复 ok"
 }
 
 # ---------- M：离线 ----------

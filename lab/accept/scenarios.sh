@@ -101,7 +101,10 @@ sc_lan() { # <A|B>
       local n4 out4="${D}/pxe-client-4011.log"
       n4="$(register_node acc-b-4011 "$(mac_of 23)" uefi)"
       api POST "/nodes/${n4}/arm" '{}' > /dev/null 2>&1 || true
-      sudo "${LAB_BIN}" pxe-client --iface "${BR}" --mac "$(mac_of 23)" --uefi > "${out4}" 2>&1 || true
+      # 从 ns-probe（10.77.0.9，经 veth 接入 br-lab）发出：本机发往 10.77.0.1 的报文走 lo，bootnet（绑定 br-lab）收不到也抓不到；
+      # pxe-client 只有带 --ip（客户端已有地址）时才向 4011 发 REQUEST
+      "${LAB_DIR}/net.sh" probe-ns
+      sudo ip netns exec ns-probe "${LAB_BIN}" pxe-client --iface vp-probe --mac "$(mac_of 23)" --uefi --ip 10.77.0.9 > "${out4}" 2>&1 || true
       api POST "/nodes/${n4}/disarm" '{}' > /dev/null 2>&1 || true
       r4011="$(tcpdump -nr "${D}/capture.pcap" 'udp port 4011' 2>/dev/null | wc -l)"
       grep -q 'ack-4011' "${out4}" && [ "${r4011}" -ge 2 ] \

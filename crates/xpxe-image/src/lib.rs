@@ -4,12 +4,16 @@
 //! - [`iso`]：生成 ISO9660 + El Torito 引导光盘，只含一个 UEFI（平台 0xEF）no-emulation 引导项。
 //! - [`session`]：Redfish 会话引导 ISO（`ipxe.efi` + `autoexec.ipxe`）。
 //! - [`readback`]：独立于写出器的 ISO/FAT 读回解析器，用于核对生成结果。
+//! - [`iso_read`]：流式读取任意 ISO（Rock Ridge / Joliet / ISO9660），识别发行版并抽取文件（Step 14）。
+//! - [`cpio`]：newc cpio 写入器，用于把整份 ISO 追加进 initrd。
 //!
 //! 输出是确定性的：所有时间戳由调用方给出的 [`Timestamp`] 决定，相同输入得到相同字节。
 #![doc(test(attr(deny(warnings), forbid(unsafe_code))))]
 
+pub mod cpio;
 pub mod fat;
 pub mod iso;
+pub mod iso_read;
 pub mod readback;
 pub mod session;
 
@@ -65,6 +69,8 @@ pub enum ImageError {
     BadPath(String),
     /// 读回解析时镜像结构不合法。
     Malformed(String),
+    /// 读写失败（流式读取 ISO 或写出抽取产物时）。
+    Io(String),
 }
 
 impl std::fmt::Display for ImageError {
@@ -74,11 +80,18 @@ impl std::fmt::Display for ImageError {
             Self::BadTimestamp => f.write_str("时间戳越界"),
             Self::BadPath(path) => write!(f, "非法路径：{path}"),
             Self::Malformed(what) => write!(f, "镜像结构不合法：{what}"),
+            Self::Io(what) => write!(f, "读写失败：{what}"),
         }
     }
 }
 
 impl std::error::Error for ImageError {}
+
+impl From<std::io::Error> for ImageError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value.to_string())
+    }
+}
 
 impl From<std::num::TryFromIntError> for ImageError {
     fn from(_value: std::num::TryFromIntError) -> Self {

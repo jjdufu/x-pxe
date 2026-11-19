@@ -40,6 +40,15 @@
 .code-scroll { max-height: 420px; overflow: auto; }
 .code-scroll .code-block { max-height: none; }
 .mobile-select { display: none; }
+.menu-entries { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.menu-entry {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: min(var(--radius-md), 10px); background: var(--bg);
+}
+.menu-entry-main { display: grid; gap: 4px; flex: 1; min-width: 160px; }
+.menu-entry-title { font-weight: 600; overflow-wrap: anywhere; }
+.drag-handle { display: inline-grid; place-items: center; padding: 4px; border: 0; background: none; color: var(--text-muted); cursor: grab; border-radius: 6px; }
+.drag-handle:focus-visible { outline: none; box-shadow: var(--ring); }
 
 @media (max-width: 1024px) {
   .editor-2col, .editor-3col { grid-template-columns: minmax(0, 1fr); }

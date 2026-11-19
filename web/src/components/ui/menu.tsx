@@ -98,7 +98,35 @@ export function ContextMenu({ children, className, ...list }: ContextMenuProps) 
         setOpen(details.open);
       }}
     >
-      <ArkMenu.ContextTrigger className={className}>{children}</ArkMenu.ContextTrigger>
+      {/* asChild + div：默认的 <button> 会把整张表（含复选框、按钮）包进按钮里，既不合法也会吞掉行点击 */}
+      <ArkMenu.ContextTrigger asChild>
+        <div className={className}>{children}</div>
+      </ArkMenu.ContextTrigger>
+      <MenuList {...list} />
+    </ArkMenu.Root>
+  );
+}
+
+export interface PointMenuProps extends MenuListProps {
+  /** 打开位置（视口坐标）；null 表示关闭。 */
+  point: { x: number; y: number } | null;
+  onClose: () => void;
+}
+
+/**
+ * 在指定坐标打开的菜单（表格右键）。与 ContextMenu 不同，它不包裹内容：
+ * 包裹会让区域内的行操作 Menu 成为它的子菜单（Ark 视作 trigger-item，Enter 不再打开）。
+ */
+export function PointMenu({ point, onClose, ...list }: PointMenuProps) {
+  useEffect(() => onDismissOverlays(onClose), [onClose]);
+  return (
+    <ArkMenu.Root
+      open={point !== null}
+      onOpenChange={(details) => {
+        if (!details.open) onClose();
+      }}
+      positioning={{ ...FIXED, placement: "bottom-start", getAnchorRect: () => (point === null ? null : { x: point.x, y: point.y, width: 0, height: 0 }) }}
+    >
       <MenuList {...list} />
     </ArkMenu.Root>
   );

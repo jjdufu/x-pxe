@@ -3,6 +3,7 @@
 @import "./tokens.css";
 @import "./components.css" layer(components);
 @import "./ark.css" layer(components);
+@import "./pages.css" layer(components);
 
 @theme inline {
   --color-*: initial;

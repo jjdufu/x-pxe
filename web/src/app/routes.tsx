@@ -1,23 +1,71 @@
-// 路由表：外壳内的全部页面（Step 11 为占位页，Step 12 替换为业务页面）。
+// 路由表：登录页在外壳之外；外壳内各业务页面按路由懒加载（外壳内有 Suspense 骨架）。
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, type RouteObject } from "react-router";
 import { AppShell } from "./AppShell";
-import { EndpointPage } from "./pages/EndpointPage";
-import { NodesPage } from "./pages/NodesPage";
+
+const OverviewPage = lazy(() => import("./pages/OverviewPage").then((module) => ({ default: module.OverviewPage })));
+const NodesPage = lazy(() => import("./pages/nodes/NodesPage").then((module) => ({ default: module.NodesPage })));
+const ConfigListPage = lazy(() => import("./pages/configs/ConfigListPage").then((module) => ({ default: module.ConfigListPage })));
+const ProfileEditorPage = lazy(() => import("./pages/configs/ProfileEditor").then((module) => ({ default: module.ProfileEditorPage })));
+const PlanEditorPage = lazy(() => import("./pages/configs/PlanEditor").then((module) => ({ default: module.PlanEditorPage })));
+const BootNetworkPage = lazy(() => import("./pages/bootnet/BootNetworkPage").then((module) => ({ default: module.BootNetworkPage })));
+const AssetsPage = lazy(() => import("./pages/assets/AssetsPage").then((module) => ({ default: module.AssetsPage })));
+const HistoryPage = lazy(() => import("./pages/admin/HistoryPage").then((module) => ({ default: module.HistoryPage })));
+const AuditPage = lazy(() => import("./pages/admin/AuditPage").then((module) => ({ default: module.AuditPage })));
+const SettingsPage = lazy(() => import("./pages/admin/SettingsPage").then((module) => ({ default: module.SettingsPage })));
+const LoginPage = lazy(() => import("./pages/LoginPage").then((module) => ({ default: module.LoginPage })));
+
+const PROFILE_BLANK = {
+  name: "",
+  locale: "en_US.UTF-8",
+  keymap: "us",
+  timezone: "UTC",
+  ntp: [],
+  console: { items: ["tty0"] },
+  mirror: { scheme: "http", host_port: "deb.debian.org", directory: "/debian", proxy: null },
+  security: { type: "official" },
+  suites: { updates: true, backports: false },
+  components: { items: ["main"] },
+  tasks: { items: ["ssh-server", "standard"] },
+  accounts: { root: { type: "disabled" }, primary_user: null },
+  disk: { prefer: "unique", size_gib: { min: 16, max: null }, exclude_models: [], include: [] },
+  partitioning: { type: "atomic_lvm" },
+  firmware_cpio: false,
+  debug: { type: "off" },
+  pkgsel_upgrade: "none",
+  extra_repos: [],
+};
 
 export const routes: RouteObject[] = [
+  {
+    path: "/login",
+    element: (
+      <Suspense fallback={null}>
+        <LoginPage />
+      </Suspense>
+    ),
+  },
   {
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <EndpointPage title="总览" description="系统信息与运行概况。" endpoint="/system/info" queryKey={["system"]} emptyTitle="暂无系统信息" emptyDescription="控制面未返回系统信息。" /> },
+      { index: true, element: <OverviewPage /> },
       { path: "nodes", element: <NodesPage /> },
-      { path: "profiles", element: <EndpointPage title="装机 Profile" description="装机参数版本链。" endpoint="/configs/profile" queryKey={["configs", "profile"]} emptyTitle="还没有 Profile" emptyDescription="新建一个装机 Profile 以开始。" /> },
-      { path: "init-plans", element: <EndpointPage title="初始化计划" description="装机后的初始化模块组合。" endpoint="/configs/init_plan" queryKey={["configs", "init_plan"]} emptyTitle="还没有初始化计划" emptyDescription="新建一个初始化计划以开始。" /> },
-      { path: "boot-network", element: <EndpointPage title="引导网络" description="bootnet 健康与指令版本。" endpoint="/bootnet/status" queryKey={["bootnet", "status"]} emptyTitle="bootnet 未上报" emptyDescription="尚未收到 bootnet 心跳。" /> },
-      { path: "assets", element: <EndpointPage title="资产" description="iPXE 与 Debian netboot 资产。" endpoint="/assets" queryKey={["assets"]} emptyTitle="还没有资产" emptyDescription="获取或上传第一份资产。" /> },
-      { path: "history", element: <EndpointPage title="配置历史" description="所有配置对象的版本链。" endpoint="/configs/profile" queryKey={["configs", "profile", "history"]} emptyTitle="暂无历史" emptyDescription="配置变更后会出现在这里。" /> },
-      { path: "audit", element: <EndpointPage title="审计日志" description="审计哈希链校验。" endpoint="/audit/verify" queryKey={["audit", "verify"]} emptyTitle="暂无审计记录" emptyDescription="操作发生后会出现在这里。" /> },
-      { path: "settings", element: <EndpointPage title="设置" description="我的账户与外观。" endpoint="/me" queryKey={["me"]} emptyTitle="未登录" emptyDescription="登录后显示账户信息。" /> },
+      {
+        path: "profiles",
+        element: <ConfigListPage kind="profile" title="装机 Profile" description="Debian 安装参数（preseed）的版本链。" route="/profiles" emptyTitle="还没有 Profile" blank={PROFILE_BLANK} />,
+      },
+      { path: "profiles/:id", element: <ProfileEditorPage /> },
+      {
+        path: "init-plans",
+        element: <ConfigListPage kind="init_plan" title="初始化计划" description="装机完成后由 agent 执行的初始化模块组合。" route="/init-plans" emptyTitle="还没有初始化计划" blank={{ name: "", modules: {} }} />,
+      },
+      { path: "init-plans/:id", element: <PlanEditorPage /> },
+      { path: "boot-network", element: <BootNetworkPage /> },
+      { path: "assets", element: <AssetsPage /> },
+      { path: "history", element: <HistoryPage /> },
+      { path: "audit", element: <AuditPage /> },
+      { path: "settings", element: <SettingsPage /> },
     ],
   },
 ];

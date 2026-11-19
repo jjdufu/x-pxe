@@ -11,9 +11,14 @@ interface BaseProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: string | undefined;
   children?: ReactNode;
   footer?: ReactNode;
+}
+
+interface DialogProps extends BaseProps {
+  /** 为 false 时不可关闭（无关闭按钮，ESC 与遮罩点击无效），如强制改密。 */
+  closable?: boolean;
 }
 
 function Header({ title, description, closable }: { title: string; description?: string | undefined; closable: boolean }) {
@@ -40,11 +45,13 @@ function firstInput(container: HTMLElement | null): HTMLElement | null {
 }
 
 /** 对话框：打开后聚焦内容中第一个输入。 */
-export function Dialog({ open, onOpenChange, title, description, children, footer }: BaseProps) {
+export function Dialog({ open, onOpenChange, title, description, children, footer, closable = true }: DialogProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <ArkDialog.Root
       initialFocusEl={() => firstInput(bodyRef.current)}
+      closeOnEscape={closable}
+      closeOnInteractOutside={closable}
       open={open}
       onOpenChange={(details) => {
         onOpenChange(details.open);
@@ -54,7 +61,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
         <ArkDialog.Backdrop className="ui-backdrop" />
         <ArkDialog.Positioner className="dialog-positioner">
           <ArkDialog.Content className="ui-dialog">
-            <Header title={title} description={description} closable />
+            <Header title={title} description={description} closable={closable} />
             <div className="ui-dialog-body" ref={bodyRef}>
               <InlineLayer.Provider value>{children}</InlineLayer.Provider>
             </div>
@@ -71,10 +78,12 @@ export interface AlertDialogProps extends Omit<BaseProps, "footer"> {
   onConfirm: () => void;
   cancelLabel?: string;
   busy?: boolean;
+  /** 确认条件未满足（如重新装机未输入主机名）。 */
+  confirmDisabled?: boolean;
 }
 
 /** 危险确认（替代 confirm()）：role=alertdialog，点击遮罩不关闭，初始焦点在“取消”。 */
-export function AlertDialog({ open, onOpenChange, title, description, children, confirmLabel, onConfirm, cancelLabel = "取消", busy = false }: AlertDialogProps) {
+export function AlertDialog({ open, onOpenChange, title, description, children, confirmLabel, onConfirm, cancelLabel = "取消", busy = false, confirmDisabled = false }: AlertDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   return (
     <ArkDialog.Root
@@ -100,7 +109,7 @@ export function AlertDialog({ open, onOpenChange, title, description, children, 
                   {cancelLabel}
                 </Button>
               </ArkDialog.CloseTrigger>
-              <Button variant="danger" disabled={busy} onClick={onConfirm}>
+              <Button variant="danger" disabled={busy || confirmDisabled} onClick={onConfirm}>
                 {confirmLabel}
               </Button>
             </div>

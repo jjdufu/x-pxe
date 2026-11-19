@@ -1,4 +1,4 @@
-// 导航结构（step-12 第 2 节；本步只建外壳与占位页）。
+// 导航结构（step-12 第 2 节）。
 import { Activity, Boxes, FileClock, Gauge, HardDrive, Network, ScrollText, Server, Settings, Workflow, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -45,7 +45,10 @@ export const NAV: NavGroup[] = [
 export const ALL_PAGES: NavItem[] = NAV.flatMap((group) => group.items);
 
 export function pageLabel(path: string): string {
-  return ALL_PAGES.find((item) => item.path === path)?.label ?? "页面";
+  const exact = ALL_PAGES.find((item) => item.path === path);
+  if (exact !== undefined) return exact.label;
+  const prefix = ALL_PAGES.find((item) => item.path !== "/" && path.startsWith(`${item.path}/`));
+  return prefix?.label ?? "页面";
 }
 
 export const STATUS_ICON = Activity;

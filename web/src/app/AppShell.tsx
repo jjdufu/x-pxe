@@ -1,12 +1,16 @@
 // 应用外壳：取自参考实现 index.html 与 styles.css 第 2 节（.app-shell、.sidebar、.topbar、.canvas、移动端离屏抽屉）。
-import { useQuery } from "@tanstack/react-query";
-import { Menu as MenuIcon, Moon, Palette, Search, Sun } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LogOut, Menu as MenuIcon, Moon, Palette, Search, Sun } from "lucide-react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Badge } from "../components/ui/feedback";
 import { CommandPalette, type Command } from "../components/ui/command-palette";
 import { api } from "../lib/api";
+import { onUnauthorized } from "../lib/auth-bus";
 import { cx } from "../lib/cx";
+import type { NodeRow } from "../lib/types";
+import { DefaultSkeleton } from "./AsyncView";
+import { ForcedPasswordDialog } from "./PasswordForm";
 import { useTheme } from "../theme/ThemeProvider";
 import { ThemeEditor } from "../theme/ThemeEditor";
 import { registerGlobalEvents } from "./global-events";
@@ -14,7 +18,7 @@ import { ALL_PAGES, NAV, pageLabel } from "./nav";
 import { useEventStream } from "./use-event-stream";
 
 interface Me {
-  user: { username: string; role: string };
+  user: { username: string; role: string; must_change_password?: boolean };
 }
 
 interface BootnetStatus {
@@ -23,6 +27,8 @@ interface BootnetStatus {
 
 function SidebarFooter() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<Me | null>("/me"), retry: false });
+  const navigate = useNavigate();
+  const client = useQueryClient();
   const bootnet = useQuery({ queryKey: ["bootnet", "status"], queryFn: () => api<BootnetStatus | null>("/bootnet/status"), retry: false });
   const user = me.data?.user;
   const healthy = bootnet.data?.healthy;
@@ -31,6 +37,23 @@ function SidebarFooter() {
       <div className="sidebar-user">
         <span className="ui-label">{user?.username ?? "未登录"}</span>
         {user !== undefined && <span className="muted-text">{user.role}</span>}
+        {user !== undefined && (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="退出登录"
+            onClick={() => {
+              void api("/auth/logout", { method: "POST" })
+                .catch(() => undefined)
+                .then(() => {
+                  client.clear();
+                  void navigate("/login");
+                });
+            }}
+          >
+            <LogOut size={14} aria-hidden="true" />
+          </button>
+        )}
       </div>
       <Badge tone={healthy === undefined ? "outline" : healthy ? "success" : "danger"} dot>
         bootnet {healthy === undefined ? "未知" : healthy ? "健康" : "异常"}
@@ -46,6 +69,8 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const stream = useEventStream();
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api<Me | null>("/me"), retry: false });
+  const nodes = useQuery({ queryKey: ["nodes"], queryFn: () => api<NodeRow[]>("/nodes"), enabled: paletteOpen });
 
   useEffect(
     () =>
@@ -55,6 +80,17 @@ export function AppShell() {
         },
       }),
     [],
+  );
+
+  useEffect(
+    () =>
+      onUnauthorized(() => {
+        // 已在登录页时不再跳转（避免 next 嵌套）
+        if (window.location.pathname === "/login") return;
+        const here = `${window.location.pathname}${window.location.search}`;
+        void navigate(`/login?next=${encodeURIComponent(here)}`, { replace: true });
+      }),
+    [navigate],
   );
 
   const commands = useMemo<Command[]>(
@@ -77,8 +113,34 @@ export function AppShell() {
           setEditorOpen(true);
         },
       },
+      ...(nodes.data ?? []).flatMap((node) => [
+        {
+          id: `node:${String(node.id)}`,
+          label: node.hostname,
+          group: "节点",
+          keywords: node.mac,
+          hint: <span className="mono tabular muted-text">{node.mac}</span>,
+          run: () => {
+            void navigate(`/nodes?node=${String(node.id)}`);
+          },
+        },
+        ...(["idle", "failed"].includes(node.state)
+          ? [
+              {
+                id: `arm:${String(node.id)}`,
+                label: `arm ${node.hostname}`,
+                group: "节点操作",
+                keywords: node.mac,
+                hint: <kbd>arm</kbd>,
+                run: () => {
+                  void navigate(`/nodes?node=${String(node.id)}&action=arm`);
+                },
+              },
+            ]
+          : []),
+      ]),
     ],
-    [mode, navigate, setEditorOpen, toggleMode],
+    [mode, navigate, setEditorOpen, toggleMode, nodes.data],
   );
 
   const closeNav = () => {
@@ -173,11 +235,17 @@ export function AppShell() {
           </div>
         </header>
         <main className="canvas" id="main">
-          <Outlet />
+          {/* 强制改密期间不渲染页面（其接口会返回 403） */}
+          {me.data?.user.must_change_password === true ? null : (
+            <Suspense fallback={<DefaultSkeleton />}>
+              <Outlet />
+            </Suspense>
+          )}
         </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} commands={commands} />
       <ThemeEditor />
+      <ForcedPasswordDialog open={me.data?.user.must_change_password === true} />
     </div>
   );
 }

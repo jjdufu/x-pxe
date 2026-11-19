@@ -1,15 +1,21 @@
 // 管理 API 客户端：同源、带会话 Cookie；写操作从 xpxe_csrf Cookie 读回 CSRF 令牌放进 X-CSRF-Token。
+// 401 时广播未登录信号（登录接口自身除外），由外壳跳转登录页。
+import { signalUnauthorized } from "./auth-bus";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fields: unknown;
+  /** 429 时的 Retry-After 秒数。 */
+  readonly retryAfter: number | null;
 
-  constructor(status: number, code: string, message: string, fields: unknown = null) {
+  constructor(status: number, code: string, message: string, fields: unknown = null, retryAfter: number | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.fields = fields;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -35,9 +41,18 @@ function isErrorBody(value: unknown): value is ErrorBody {
   return typeof value === "object" && value !== null && "error" in value;
 }
 
+function retryAfterOf(response: Response): number | null {
+  const raw = response.headers.get("Retry-After");
+  if (raw === null) return null;
+  const value = Number.parseInt(raw, 10);
+  return Number.isNaN(value) ? null : value;
+}
+
 export interface RequestOptions {
   method?: string;
   body?: unknown;
+  /** 原始请求体（上传文件），以 application/octet-stream 发送。 */
+  raw?: Blob;
   signal?: AbortSignal;
 }
 
@@ -50,7 +65,10 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     if (csrf !== null) headers.set("X-CSRF-Token", csrf);
   }
   const init: RequestInit = { method, headers, credentials: "same-origin" };
-  if (options.body !== undefined) {
+  if (options.raw !== undefined) {
+    headers.set("Content-Type", "application/octet-stream");
+    init.body = options.raw;
+  } else if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
     init.body = JSON.stringify(options.body);
   }
@@ -72,12 +90,14 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     }
   }
   if (!response.ok) {
+    if (response.status === 401 && path !== "/auth/login") signalUnauthorized();
     const detail = isErrorBody(parsed) ? parsed.error : undefined;
     throw new ApiError(
       response.status,
       detail?.code ?? `HTTP_${String(response.status)}`,
       detail?.message ?? response.statusText,
       detail?.fields ?? null,
+      retryAfterOf(response),
     );
   }
   return parsed as T;

@@ -2,7 +2,7 @@
 // app.js bindCustomSelectsAndDropdowns（↑↓、Enter、ESC、外部点击、aria-expanded/aria-selected）——这些行为由 Ark Select 状态机提供。
 import { Select as ArkSelect, createListCollection } from "@ark-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
-import { useMemo } from "react";
+import { useState } from "react";
 import { cx } from "../../lib/cx";
 import { FIXED, Layer } from "./layer";
 
@@ -23,8 +23,16 @@ export interface SelectProps {
   className?: string;
 }
 
+function build(options: readonly Option[]) {
+  return createListCollection({ items: [...options], isItemDisabled: (item) => item.disabled === true });
+}
+
 export function Select({ label, options, value, onChange, placeholder = "请选择", hideLabel = false, disabled = false, className }: SelectProps) {
-  const collection = useMemo(() => createListCollection({ items: [...options], isItemDisabled: (item) => item.disabled === true }), [options]);
+  // 选项内容不变时沿用同一 collection：父组件每次渲染都可能传入新数组，换 collection 会让展开中的列表丢失高亮项
+  const signature = options.map((item) => `${item.value}\u0000${item.label}\u0000${item.disabled === true ? "1" : "0"}`).join("\u0001");
+  const [cache, setCache] = useState(() => ({ signature, collection: build(options) }));
+  if (cache.signature !== signature) setCache({ signature, collection: build(options) });
+  const { collection } = cache;
   return (
     <ArkSelect.Root
       collection={collection}

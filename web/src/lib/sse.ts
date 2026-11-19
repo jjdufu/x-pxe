@@ -18,17 +18,23 @@ export interface Pushed {
 
 export type StreamStatus = "connecting" | "open" | "closed";
 
+/**
+ * 订阅推送。EventSource 只对网络错误自动重连；HTTP 错误（如强制改密期间的 403、登录前的 401）会永久关闭，
+ * 这里在关闭后按 retryMs 重新建立连接，直到调用清理函数。
+ */
 export function subscribeEvents(
   onEvent: (event: Pushed) => void,
   onStatus: (status: StreamStatus) => void,
   url = "/api/v1/events/stream",
+  retryMs = 5000,
 ): () => void {
   if (typeof EventSource === "undefined") {
     onStatus("closed");
     return () => undefined;
   }
-  const source = new EventSource(url, { withCredentials: true });
-  onStatus("connecting");
+  let source: EventSource | null = null;
+  let timer: number | null = null;
+  let stopped = false;
   const handle = (message: MessageEvent<string>) => {
     try {
       const parsed = JSON.parse(message.data) as Pushed;
@@ -37,15 +43,33 @@ export function subscribeEvents(
       // 忽略无法解析的推送
     }
   };
-  for (const kind of EVENT_KINDS) source.addEventListener(kind, handle);
-  source.onopen = () => {
-    onStatus("open");
+  const connect = () => {
+    timer = null;
+    if (stopped) return;
+    const current = new EventSource(url, { withCredentials: true });
+    source = current;
+    onStatus("connecting");
+    for (const kind of EVENT_KINDS) current.addEventListener(kind, handle);
+    current.onopen = () => {
+      onStatus("open");
+    };
+    current.onerror = () => {
+      if (current.readyState !== EventSource.CLOSED) {
+        onStatus("connecting");
+        return;
+      }
+      onStatus("closed");
+      for (const kind of EVENT_KINDS) current.removeEventListener(kind, handle);
+      if (!stopped && timer === null) timer = window.setTimeout(connect, retryMs);
+    };
   };
-  source.onerror = () => {
-    onStatus(source.readyState === EventSource.CLOSED ? "closed" : "connecting");
-  };
+  connect();
   return () => {
-    for (const kind of EVENT_KINDS) source.removeEventListener(kind, handle);
-    source.close();
+    stopped = true;
+    if (timer !== null) window.clearTimeout(timer);
+    if (source !== null) {
+      for (const kind of EVENT_KINDS) source.removeEventListener(kind, handle);
+      source.close();
+    }
   };
 }

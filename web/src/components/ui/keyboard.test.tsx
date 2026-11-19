@@ -78,6 +78,10 @@ describe("Menu 键盘", () => {
     await waitFor(() => {
       expect(trigger.getAttribute("aria-expanded")).toBe("true");
     });
+    // Ark 在下一帧把焦点移入菜单内容；之后再按方向键，避免与打开过程竞争
+    await waitFor(() => {
+      expect(document.activeElement?.getAttribute("role")).toBe("menu");
+    });
     await user.keyboard("{ArrowDown}{Enter}");
     await waitFor(() => {
       expect(onSelect).toHaveBeenCalledWith("disarm");

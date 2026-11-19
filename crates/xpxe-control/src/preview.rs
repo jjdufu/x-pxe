@@ -376,6 +376,7 @@ pub(crate) async fn validate(
         "boot_network" => validate_of::<xpxe_domain::BootNetwork>(body.document),
         "dhcp_rules" => validate_of::<xpxe_domain::DhcpRules>(body.document),
         "timeouts" => validate_of::<xpxe_domain::Timeouts>(body.document),
+        "boot_menu" => validate_of::<xpxe_domain::BootMenu>(body.document),
         other => return Err(Failure::not_found(format!("未知配置种类 {other}"))),
     };
     Ok(Json(reply))
@@ -418,6 +419,7 @@ pub(crate) async fn diff(
         "boot_network" => versions_diff::<xpxe_domain::BootNetwork>(&app, id, &params)?,
         "dhcp_rules" => versions_diff::<xpxe_domain::DhcpRules>(&app, id, &params)?,
         "timeouts" => versions_diff::<xpxe_domain::Timeouts>(&app, id, &params)?,
+        "boot_menu" => versions_diff::<xpxe_domain::BootMenu>(&app, id, &params)?,
         "node_spec" => versions_diff::<crate::nodes::NodeDoc>(&app, id, &params)?,
         other => return Err(Failure::not_found(format!("未知配置种类 {other}"))),
     };

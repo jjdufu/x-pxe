@@ -62,6 +62,8 @@ pub(crate) struct Volatile {
     pub(crate) acknowledged: Vec<std::net::Ipv4Addr>,
     /// 管理员请求的现网探测序号。
     pub(crate) probe_nonce: u64,
+    /// 手动引导抽取任务：键 → `running` 或失败说明。
+    pub(crate) extracts: BTreeMap<String, String>,
 }
 
 /// 控制面共享状态。
@@ -183,6 +185,9 @@ impl App {
             settings.assets_dir(),
             settings.sessions_dir(),
             settings.iso_dir(),
+            settings.manual_iso_dir(),
+            settings.manual_extract_dir(),
+            settings.iso_upload_dir(),
         ] {
             std::fs::create_dir_all(&dir).map_err(internal)?;
         }

@@ -1,4 +1,4 @@
-//! 引导端 Router（无会话；按令牌或 MAC 判定）：`/boot.ipxe`、`/boot/mac/{mac}`、`/fw/*`、`/p/{token}/*`、`/healthz`。
+//! 引导端 Router（无会话；按令牌或 MAC 判定）：`/boot.ipxe`、`/boot/mac/{mac}`、`/fw/*`、`/p/{token}/*`、`/m/*`（手动通道）、`/healthz`。
 
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -100,6 +100,11 @@ async fn by_mac(
         detail: json!({ "ip": ip, "armed": armed.is_some() }).to_string(),
     };
     app.store.observations().record(&observation)?;
+    if armed.is_none()
+        && let Some(script) = crate::manual::menu_for_mac(&app, mac, row.is_some(), &ip)?
+    {
+        return Ok(script);
+    }
     let Some((node_id, session)) = armed else {
         return Ok(exit_script(if row.is_some() {
             "node not armed"
@@ -148,7 +153,10 @@ async fn healthz() -> &'static str {
 /// 每 IP 每分钟限速。
 async fn rate_limit(State(app): State<Arc<App>>, request: Request, next: Next) -> Response {
     let ip = request.extensions().get::<Peer>().map(|peer| peer.0.ip());
-    if let Some(addr) = ip {
+    // 手动通道的 Range 读取（sanboot 按块读取 ISO）不计数；整份下载与脚本请求仍受限速
+    let ranged =
+        request.uri().path().starts_with("/m/") && request.headers().contains_key(header::RANGE);
+    if let Some(addr) = ip.filter(|_| !ranged) {
         let minute = app.now().unix_seconds().div_euclid(60);
         let limit = app.options.boot_rate_per_min;
         let mut volatile = app.volatile();
@@ -181,6 +189,7 @@ pub(crate) fn router(app: Arc<App>) -> Router {
         .route("/p/{token}/events/{kind}", post(ingest::post_kind))
         .route("/p/{token}/{*rest}", get(served::get))
         .route("/healthz", get(healthz))
+        .merge(crate::manual::routes())
         .layer(middleware::from_fn_with_state(Arc::clone(&app), rate_limit))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .with_state(app)

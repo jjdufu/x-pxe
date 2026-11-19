@@ -170,6 +170,13 @@ pub async fn installer(harness: &Harness, boot_token: &str, session: &str) -> Ou
         .boot("GET", &format!("/p/{boot_token}/preseed.cfg"), b"")
         .await?;
     ensure_eq(&again.status, &410, "preseed 第二次 410")?;
+    let rerun = harness
+        .boot("GET", &format!("/p/{boot_token}/boot.ipxe"), b"")
+        .await?;
+    ensure(
+        rerun.text().contains("exit 1") && !rerun.text().contains("kernel"),
+        "preseed 取走后脚本回落到下一个启动项",
+    )?;
     for kind in ["installer.started", "installer.finished"] {
         let body = format!("event={kind} event_id={session}.installer");
         let reply = harness

@@ -248,6 +248,20 @@ pub(crate) async fn get(
     match rest.as_str() {
         "boot.ipxe" => {
             let session = authorize(&app, &token, Resource::IpxeScript)?;
+            // preseed 已取走（安装器启动过）后再次进入：虚拟介质未弹出或节点重启又走到本会话脚本，
+            // 回落到下一个启动项（已装好的系统盘），不再引导安装器（preseed 一次性，再引导也只会停在 d-i 报错）
+            if app
+                .store
+                .tokens()
+                .get(&session)?
+                .preseed_served_at
+                .is_some()
+            {
+                return Ok(ipxe(
+                    "#!ipxe\necho x-pxe: installer already started for this session, booting next device\nsleep 3\nexit 1\n"
+                        .to_owned(),
+                ));
+            }
             let body = artifacts::read_text(&app.settings, session.as_str(), "boot.ipxe")?
                 .ok_or_else(|| Failure::not_found("脚本缺失"))?;
             Ok(ipxe(body))

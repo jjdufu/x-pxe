@@ -190,6 +190,7 @@ lab/net.sh down                                           # 恢复 box 网络
 | B 场景 4011 检查 | 构造的 4011 REQUEST 从 `ns-probe` 网络命名空间（10.77.0.9，`lab/net.sh probe-ns`）发出并带 `--ip`，判定为收到 bootnet 的 4011 ACK | 原先从宿主自己的地址发往自己，报文走 `lo`，绑定在 br-lab 上的 bootnet 收不到，抓包 0 个；`pxe-client` 也只有带 `--ip` 时才发 4011 REQUEST。EDK2/iPXE 直接接受 67 端口上的 ProxyDHCP OFFER（Step 2 H2），4011 只作协议层确认 |
 | 全量连跑的 tap 占用 | A/B 的虚拟机只在紧接着要跑 B/H 时保留，其余场景前全部关机；H 从 A/B 已装好的磁盘按原命令行重新开机 | A/B 虚拟机一直占着 tap0–tap3 时，C 的 B1 拿不到 tap0，串口无输出、节点停在 Armed |
 | iPXE 回落（验收中发现并修复） | 未武装、引导失败与手动菜单“本地启动”的 iPXE 脚本统一以 `exit 1` 结束（原为 `exit`） | E 场景（现网 DHCP）OVMF 节点装完重启后，现网 DHCP 仍把它引到 iPXE，`exit` 以 EFI_SUCCESS 返回固件，EDK2 按 UEFI 规范停止处理 BootOrder 并进入固件菜单，节点停在 `installed` 直到 firstboot 超时；非零返回值让固件继续尝试下一个启动项（已装好的 `debian`）。BIOS 下返回值无影响。修复后镜像重建、A–P 全部在修复后的镜像上重跑 |
+| 会话脚本防重入（验收中发现并修复） | `/p/{token}/boot.ipxe` 在本会话的 preseed 已被取走后不再返回安装脚本，改为 `exit 1` 回落到下一个启动项 | F 场景 sushy（libvirt 驱动）的 EjectMedia 只改域的持久配置，客机热重启后仍从虚拟光驱进入 ISO 里的 iPXE，再次链到会话脚本启动 d-i，preseed 一次性返回 410，安装器停在报错画面直到 firstboot 超时；真实 BMC 的弹出立即生效，但同样的情况（介质未弹出、重启又进网络引导）不应再进安装器。修复后镜像重建，A–P 全部重跑 |
 | F/G 场景 sushy 启动 | `svc_start` 从 `lab/run.sh` 移到 `lab/lib/common.sh`；Redfish 部署请求失败时场景立即结束 | 验收脚本不 source `lab/run.sh`，测试机上 sushy 尚未运行时 `rf_start_sushy` 找不到函数；之前 box 上 sushy 已在运行所以没暴露 |
 | 依赖安全公告 | 新增 `deny.toml`（许可证白名单、来源、重复版本、安全公告），R 场景运行 `cargo deny check`；暂时忽略 RUSTSEC-2026-0386（tokio `AsyncFd` 安全构造器 unsound，本仓库不使用 `AsyncFd`，修复版需要整体升级 tokio） | 升级 tokio 时移除该忽略项 |
 | Q 场景端口 | Q 的联调用例运行期间先停被测部署（compose down，保留数据卷），结束后再 `deploy_up` | 联调栈 `webui-stack` 与被测部署都要用 8088 |

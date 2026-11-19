@@ -387,7 +387,7 @@ sc_M() {
   local CHAIN=(DOCKER-USER -s 172.30.77.0/24 ! -d 10.77.0.0/24 -m conntrack --ctstate NEW -j REJECT)
   deploy_down; deploy_up true
   sudo iptables -I "${CHAIN[@]}" 2>/dev/null || sudo iptables -I DOCKER-USER -s 172.30.77.0/24 ! -d 10.77.0.0/24 -m conntrack --ctstate NEW -j REJECT
-  sudo iptables -Z DOCKER-USER
+  sudo iptables -Z DOCKER-USER 1   # 只清零刚插入的第 1 条规则，不动其他栈的计数
   local fetch; fetch="$(api POST /assets/fetch '{"kind":"ipxe_efi_x64"}' || true)"
   grep -qi 'offline\|离线' <<< "${fetch}" && check "官方获取禁用" 0 "$(jq -r '.message // .error.message // .' <<< "${fetch}" | cut -c1-100)" || check "官方获取禁用" 1 "${fetch:0:200}"
   local id; id="$(upload_ipxe ipxe_efi_x64 /usr/lib/ipxe/ipxe.efi)"

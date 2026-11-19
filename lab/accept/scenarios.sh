@@ -408,7 +408,8 @@ sc_N() {
   local node; node="$(register_node acc-n "$(mac_of d1)" uefi)"
   local r; r="$(api POST "/nodes/${node}/arm" '{}' || true)"
   grep -qi 'ABI\|ALIGN' <<< "${r}" && grep -q "${LAB_IP}:3142\|mirror\|镜像" <<< "${r}" \
-    && check "arm 拒绝" 0 "$(jq -c '[.fields[]? | {path,code}]' <<< "${r}")" || check "arm 拒绝" 1 "${r:0:300}"
+    && check "arm 拒绝" 0 "$(jq -r '"\(.error.code // .code)：\(.error.message // .message)"' <<< "${r}" | cut -c1-240)" || check "arm 拒绝" 1 "${r:0:300}"
+  echo "${r}" > "${D}/arm-refused.json"
   activate debian_netboot_amd64 "$(ids netboot)" "恢复对齐的 netboot"
 }
 

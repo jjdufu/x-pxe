@@ -34,6 +34,23 @@ svc_stop() {
   local p; p="$(svc_pid "$1")"
   if [ -f "$p" ]; then sudo kill "$(cat "$p")" 2>/dev/null || true; rm -f "$p"; fi
 }
+# 以 root 或当前用户在后台启动服务（lab/run.sh 与验收场景 F 的 sushy 共用）
+svc_start() { # <名字> <root|user> <命令…>
+  local name="$1" mode="$2"; shift 2
+  svc_running "${name}" && return 0
+  : > "$(svc_log "${name}")"
+  if [ "${mode}" = root ]; then
+    sudo setsid "$@" >> "$(svc_log "${name}")" 2>&1 < /dev/null &
+  else
+    setsid "$@" >> "$(svc_log "${name}")" 2>&1 < /dev/null &
+  fi
+  local launcher=$!
+  sleep 0.5
+  local child
+  child="$(pgrep -P "${launcher}" | tail -1 || true)"
+  echo "${child:-$launcher}" > "$(svc_pid "${name}")"
+  svc_running "${name}" || { cat "$(svc_log "${name}")" >&2; die "服务 ${name} 启动失败"; }
+}
 
 # 实验室 APT 缓存容器 lab-acng。缓存目录挂在 ${WORK}/acng-cache（重建容器不丢缓存）。
 # 可选实验室环境变量（不影响产品默认值与 CI）：

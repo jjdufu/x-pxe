@@ -19,23 +19,6 @@ SNPONLY_IDS=(c6 c7)
 SETPRIV=(setpriv --reuid "${PROBE_UID}" --regid "${PROBE_UID}" --clear-groups
          --inh-caps +net_bind_service --ambient-caps +net_bind_service)
 
-svc_start() { # <名字> <root|user> <命令…>
-  local name="$1" mode="$2"; shift 2
-  svc_running "${name}" && return 0
-  : > "$(svc_log "${name}")"
-  if [ "${mode}" = root ]; then
-    sudo setsid "$@" >> "$(svc_log "${name}")" 2>&1 < /dev/null &
-  else
-    setsid "$@" >> "$(svc_log "${name}")" 2>&1 < /dev/null &
-  fi
-  local launcher=$!
-  sleep 0.5
-  local child
-  child="$(pgrep -P "${launcher}" | tail -1 || true)"
-  echo "${child:-$launcher}" > "$(svc_pid "${name}")"
-  svc_running "${name}" || { cat "$(svc_log "${name}")" >&2; die "服务 ${name} 启动失败"; }
-}
-
 services() { # proxy|noproxy
   ip link show "${BR}" >/dev/null 2>&1 || die "先运行 lab/net.sh up"
   svc_start serve user "${LAB_BIN}" serve --dir "${WORK}/www" --listen "${LAB_IP}:8080"

@@ -8,6 +8,7 @@ use crate::{StoreError, StoreResult};
 pub(crate) const MIGRATIONS: &[(&str, &str)] = &[
     ("0001_init", include_str!("../migrations/0001_init.sql")),
     ("0002_outbox", include_str!("../migrations/0002_outbox.sql")),
+    ("0003_iso", include_str!("../migrations/0003_iso.sql")),
 ];
 
 /// 把数据库迁移到最新版本。

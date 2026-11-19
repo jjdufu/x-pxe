@@ -10,6 +10,7 @@ use crate::integrity_messages;
 const SAMPLES: &[&str] = &[
     include_str!("samples/after_0001.sql"),
     include_str!("samples/after_0002.sql"),
+    include_str!("samples/after_0003.sql"),
 ];
 
 /// 空库迁移到最新。

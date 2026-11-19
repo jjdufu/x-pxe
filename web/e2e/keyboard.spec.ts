@@ -35,6 +35,8 @@ test("Select：Enter 打开、↓ 选择、Enter 确认、ESC 关闭", async ({ 
   expect(await hasRing(page)).toBe(true);
   await page.keyboard.press("Enter");
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  // 等焦点真正移入浮层再按方向键，避免与 Ark 打开动画/聚焦竞争
+  await expect(page.locator(":focus")).toHaveAttribute("role", "listbox");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -65,6 +67,7 @@ test("Menu：Enter 打开、↓↓ 移动、Enter 执行", async ({ page, extern
   expect(await hasRing(page)).toBe(true);
   await page.keyboard.press("Enter");
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(":focus")).toHaveAttribute("role", "menu");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("last-action")).toContainText("菜单 disarm");

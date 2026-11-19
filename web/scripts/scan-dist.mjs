@@ -1,11 +1,11 @@
 // 产物扫描（step-11 第 10 节第 5 项）：dist 中不得出现外链与禁用 API。
 // 允许的 URL 字面量只有：XML/SVG/MathML 命名空间（w3.org），以及 React / React Router 生产包里
-// 错误提示文案中的文档地址、React Router 解析相对路径用的基址 http://localhost（只是字符串，不会发起请求；Playwright 离线用例另行断言外部请求数为 0）。
+// 错误提示文案中的文档地址（含 React Router useSearchParams 警告里的 github.com/ungap/url-search-params polyfill 建议）、React Router 解析相对路径用的基址 http://localhost（只是字符串，不会发起请求；Playwright 离线用例另行断言外部请求数为 0）。
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const root = new URL(`../${process.argv[2] ?? "dist"}/`, import.meta.url).pathname;
-const ALLOWED_URL = /^(https?:\/\/(www\.w3\.org\/|react\.dev\/errors\/|reactrouter\.com\/)|http:\/\/localhost$)/u;
+const ALLOWED_URL = /^(https?:\/\/(www\.w3\.org\/|react\.dev\/errors\/|reactrouter\.com\/|github\.com\/ungap\/url-search-params\.?$)|http:\/\/localhost$)/u;
 
 export const BANNED = [
   [/<select[\s>]/u, "原生 <select>"],

@@ -150,15 +150,17 @@ sc_manual_pve() {
   for fw in ovmf seabios; do vm="${REPO_DIR}/lab/work/vm/acc-mp-${fw}"; screendump "${vm}"; cp "${vm}/screen.ppm" "${D}/screen-${fw}.ppm" 2>/dev/null || true; vm_keep_serial "${vm}" "${fw}"; vm_stop "${vm}"; done
 }
 # 安装器判定：串口出现 PVE 安装环境的启动标志且没有 “no cdrom found”
-PVE_MARK="${PVE_MARK:-Proxmox VE|proxmox-installer|Starting the installer|starting proxmox installer}"
+# 只在内核 “Run /init” 之后的输出里找标志，避免 iPXE 菜单标题 “Proxmox VE …” 误判
+PVE_MARK="${PVE_MARK:-Starting the installer|proxmox-installer|starting proxmox installer}"
+post_init() { sed -n '/Run \/init/,$p' "$1/serial.log" 2>/dev/null | tr -d '\r'; }
 pve_installer() { # <VM 目录> <固件> <秒>
   local deadline=$(($SECONDS + $3))
   while [ "${SECONDS}" -lt "${deadline}" ]; do
     if grep -qai "no cdrom found" "$1/serial.log" 2>/dev/null; then check "安装器(${2})" 1 "串口出现 no cdrom found"; return; fi
-    if grep -qaiE "${PVE_MARK}" "$1/serial.log" 2>/dev/null && grep -qa "Run /init" "$1/serial.log"; then
+    if post_init "$1" | grep -qaiE "${PVE_MARK}"; then
       sleep 30
       if grep -qai "no cdrom found" "$1/serial.log"; then check "安装器(${2})" 1 "串口出现 no cdrom found"; return; fi
-      check "安装器(${2})" 0 "进入 PVE 安装环境：$(grep -aiE -m1 "${PVE_MARK}" "$1/serial.log" | tr -d '\r' | cut -c1-80)"; return
+      check "安装器(${2})" 0 "进入 PVE 安装环境：$(post_init "$1" | grep -aiE -m1 "${PVE_MARK}" | cut -c1-80)"; return
     fi
     sleep 10
   done

@@ -1,5 +1,5 @@
 // 导航结构（step-12 第 2 节）。
-import { Activity, Boxes, FileClock, Gauge, HardDrive, Network, ScrollText, Server, Settings, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, Boxes, Disc3, FileClock, Gauge, HardDrive, Network, ScrollText, Server, Settings, Workflow, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   path: string;
@@ -27,6 +27,7 @@ export const NAV: NavGroup[] = [
       { path: "/init-plans", label: "初始化计划", icon: Workflow },
       { path: "/boot-network", label: "引导网络", icon: Network },
       { path: "/assets", label: "资产", icon: Boxes },
+      { path: "/boot-menu", label: "手动引导菜单", icon: Disc3 },
     ],
   },
   {

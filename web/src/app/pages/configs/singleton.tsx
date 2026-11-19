@@ -55,6 +55,7 @@ export function SingletonSave({ kind, state, name = "default", fallback }: { kin
       setComment("");
       await client.invalidateQueries({ queryKey: ["configs", kind] });
       await client.invalidateQueries({ queryKey: ["bootnet"] });
+      void client.invalidateQueries({ queryKey: ["boot-menu"] });
       void client.invalidateQueries({ queryKey: ["history"] });
       state.reset();
     } catch (error) {

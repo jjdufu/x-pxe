@@ -25,7 +25,8 @@ export function fmtCountdown(seconds: number): string {
 export function fmtBytes(size: number): string {
   if (size < 1024) return `${String(size)} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KiB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MiB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MiB`;
+  return `${(size / 1024 / 1024 / 1024).toFixed(2)} GiB`;
 }
 
 export function shortSha(sha: string): string {

@@ -5,6 +5,7 @@ import { notify } from "../components/ui/toast";
 import { api, ApiError } from "../lib/api";
 import type {
   AssetsView,
+  BootMenuStatus,
   AuditPage,
   BootnetStatus,
   ConfigHead,
@@ -12,6 +13,8 @@ import type {
   EventDetail,
   HistoryRow,
   InitModules,
+  IsoList,
+  IsoTree,
   Me,
   NodeRow,
   Observation,
@@ -37,6 +40,9 @@ export function useConfigHead<T>(kind: string, id: number | null) {
 export const usePresets = () => useQuery({ queryKey: ["presets"], queryFn: () => api<Presets>("/presets"), staleTime: Infinity });
 export const useInitModules = () => useQuery({ queryKey: ["init-modules"], queryFn: () => api<InitModules>("/init-modules"), staleTime: Infinity });
 export const useAssets = () => useQuery({ queryKey: ["assets"], queryFn: () => api<AssetsView | null>("/assets") });
+export const useIsos = () => useQuery({ queryKey: ["isos"], queryFn: () => api<IsoList | null>("/isos") });
+export const useIsoTree = (sha: string | null) => useQuery({ queryKey: ["isos", sha, "tree"], queryFn: () => api<IsoTree>(`/isos/${sha ?? ""}/tree`), enabled: sha !== null && sha !== "", staleTime: Infinity });
+export const useBootMenuStatus = () => useQuery({ queryKey: ["boot-menu", "status"], queryFn: () => api<BootMenuStatus | null>("/boot-menu/status") });
 export const useBootnetStatus = () => useQuery({ queryKey: ["bootnet", "status"], queryFn: () => api<BootnetStatus | null>("/bootnet/status") });
 export const useObservations = () => useQuery({ queryKey: ["bootnet", "observations"], queryFn: () => api<Observation[]>("/bootnet/observations") });
 export const useSnippets = (enabled: boolean) => useQuery({ queryKey: ["bootnet", "snippets"], queryFn: () => api<Snippets | null>("/bootnet/snippets"), enabled });

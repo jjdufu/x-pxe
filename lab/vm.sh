@@ -32,7 +32,13 @@ qemu-img create -q -f qcow2 "${VM}/data.qcow2" "${disks##*,}"
 truncate -s 1G "${VM}/vusb.raw"
 nb1=1 nb2=3 db=2
 case "${boot}" in disk-first) nb1=2; db=1 ;; nic2-first) nb1=3; nb2=1 ;; esac
-args=(-name "${name}" -accel kvm -cpu host -smp 2 -m "${mem}" -machine q35)
+# XPXE_LAB_ACCEL=tcg：宿主 KVM 不可用（例如嵌套 VMX 在 vcpu 创建时触发内核 BUG）时改用纯软件模拟
+ACCEL="${XPXE_LAB_ACCEL:-kvm}"
+if [ "${ACCEL}" = tcg ]; then
+  args=(-name "${name}" -accel tcg,thread=multi,tb-size=512 -cpu max -smp 2 -m "${mem}" -machine q35)
+else
+  args=(-name "${name}" -accel kvm -cpu host -smp 2 -m "${mem}" -machine q35)
+fi
 case "${fw}" in
   seabios) ;;
   ovmf|ovmf-http)
@@ -63,6 +69,7 @@ args+=(-drive "if=none,id=sys,file=${VM}/sys.qcow2" -device "virtio-blk-pci,driv
 args+=(-serial "file:${VM}/serial.log" -display none -monitor "unix:${VM}/mon.sock,server,nowait"
        -daemonize -pidfile "${VM}/qemu.pid")
 printf '%q ' qemu-system-x86_64 "${args[@]}" > "${VM}/cmdline"
-as_kvm "$(cat "${VM}/cmdline")"
+if [ "${ACCEL}" = tcg ]; then bash -c "$(cat "${VM}/cmdline")" < /dev/null > /dev/null 2>&1
+else as_kvm "$(cat "${VM}/cmdline")" < /dev/null > /dev/null 2>&1; fi
 log "VM ${name} 已启动（${fw}/${nic} ${mac} @${tap}${nic2:+ + ${nic2} ${mac2} @${tap2}}）"
 echo "${VM}"

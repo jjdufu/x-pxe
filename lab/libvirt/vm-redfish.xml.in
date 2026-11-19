@@ -1,5 +1,5 @@
-<!-- Redfish 场景的 libvirt 域模板；lab/run.sh 渲染 @...@ 占位符 -->
-<domain type='kvm'>
+<!-- Redfish 场景的 libvirt 域模板；lab/lib/redfish.sh 渲染 @...@ 占位符（XPXE_LAB_ACCEL=tcg 时 @DOMTYPE@=qemu、@CPUMODE@=maximum） -->
+<domain type='@DOMTYPE@'>
   <name>vm-redfish</name>
   <uuid>@UUID@</uuid>
   <memory unit='MiB'>2048</memory>
@@ -11,7 +11,7 @@
     <boot dev='hd'/>
   </os>
   <features><acpi/><apic/></features>
-  <cpu mode='host-passthrough'/>
+  <cpu mode='@CPUMODE@'/>
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
     <disk type='file' device='disk'>

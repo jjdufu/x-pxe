@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# “现网 DHCP”替身：lab/dhcp.sh start <existing|coexist|rogue>|stop [rogue]
+# “现网 DHCP”替身：lab/dhcp.sh start <existing|coexist|rogue|product>|stop [rogue]
+# product：验收场景 E 把产品生成的 Kea 片段合并进 existing 后写到 lab/kea/product.json（不入库）。
 # 容器 --network none，再把 veth 一端移入容器命名空间接入 br-lab。
 source "$(dirname "$0")/lib/common.sh"
 
@@ -24,9 +25,9 @@ run_kea() { # <容器> <配置> <宿主侧 veth> <地址>
 case "${1:-}" in
   start)
     case "${2:-}" in
-      coexist|existing) run_kea lab-dhcp "$2" vh-dhcp 10.77.0.2 ;;
+      coexist|existing|product) run_kea lab-dhcp "$2" vh-dhcp 10.77.0.2 ;;
       rogue) run_kea lab-rogue rogue vh-rogue 10.77.0.3 ;;
-      *) echo "用法：lab/dhcp.sh start <existing|coexist|rogue>" >&2; exit 2 ;;
+      *) echo "用法：lab/dhcp.sh start <existing|coexist|rogue|product>" >&2; exit 2 ;;
     esac ;;
   stop)
     if [ "${2:-}" = rogue ]; then names=(lab-rogue); else names=(lab-dhcp lab-rogue); fi
@@ -35,5 +36,5 @@ case "${1:-}" in
       docker ps -a --format '{{.Names}}' | grep -qx "lab-${v#vh-}" || sudo ip link del "${v}" 2>/dev/null || true
     done
     log "已停止：${names[*]}" ;;
-  *) echo "用法：lab/dhcp.sh start <existing|coexist|rogue>|stop [rogue]" >&2; exit 2 ;;
+  *) echo "用法：lab/dhcp.sh start <existing|coexist|rogue|product>|stop [rogue]" >&2; exit 2 ;;
 esac

@@ -18,7 +18,9 @@ rf_prepare() { # <mac>
   sudo rm -rf "${RF_VM}"; sudo mkdir -p "${RF_VM}"
   sudo qemu-img create -q -f qcow2 "${RF_VM}/sys.qcow2" 20G
   uuid="$(cat /proc/sys/kernel/random/uuid)"
-  sed -e "s#@UUID@#${uuid}#" -e "s#@VM@#${RF_VM}#g" -e "s#@MAC@#${mac}#" \
+  local domtype=kvm cpumode=host-passthrough
+  [ "${XPXE_LAB_ACCEL:-kvm}" = tcg ] && domtype=qemu cpumode=maximum
+  sed -e "s#@UUID@#${uuid}#" -e "s#@VM@#${RF_VM}#g" -e "s#@MAC@#${mac}#" -e "s#@DOMTYPE@#${domtype}#" -e "s#@CPUMODE@#${cpumode}#" \
     "${LAB_DIR}/libvirt/vm-redfish.xml.in" > "${WORK}/sushy/vm-redfish.xml"
   sudo virsh -q -c qemu:///system define "${WORK}/sushy/vm-redfish.xml" >/dev/null
   sed -e "s#@UUID@#${uuid}#" -e "s#@WORK@#${WORK}#g" "${LAB_DIR}/sushy/emulator.conf.in" > "${WORK}/sushy/emulator.conf"

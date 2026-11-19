@@ -15,11 +15,13 @@ as_kvm 'test -r /dev/kvm && test -w /dev/kvm' && log "kvm-ok"
 log "libvirt（无 systemd，手动拉起）"
 pgrep -x virtlogd >/dev/null || sudo virtlogd -d
 if ! pgrep -x libvirtd >/dev/null; then
+  sudo rm -f /run/libvirtd.pid
   sudo sed -i 's/^#\?cgroup_controllers = .*/cgroup_controllers = [ ]/' /etc/libvirt/qemu.conf
   sudo libvirtd -d
   sleep 2
 fi
-sudo virsh -c qemu:///system version >/dev/null && log "libvirt-ok"
+# virsh version 在部分宿主上会卡在 QEMU 能力探测，改用 list 判活
+sudo timeout 30 virsh -c qemu:///system list >/dev/null && log "libvirt-ok"
 sudo virsh -c qemu:///system net-destroy default >/dev/null 2>&1 || true
 sudo virsh -c qemu:///system net-autostart default --disable >/dev/null 2>&1 || true
 # sushy-tools 下载虚拟介质时写入 libvirt 的 default 存储池（与 default 网络无关）

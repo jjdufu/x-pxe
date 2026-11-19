@@ -8,6 +8,9 @@ vm_start() { # <名字> <固件> <网卡> <mac> <tap> [vm.sh 额外参数…] �
   "${LAB_DIR}/vm.sh" --name "acc-${name}" --fw "${fw}" --nic "${nic}" --mac "${mac}" --tap "${tap}" "$@" 2>> "${D}/vm.log" | tail -1
 }
 vm_stop() { local d="$1"; [ -f "${d}/qemu.pid" ] && kill "$(cat "${d}/qemu.pid")" 2>/dev/null || true; sleep 2; }
+vm_stop_all() { # 关掉所有验收虚拟机（A/B 留给 H 的除外，由 H 结束时调用）
+  local f; for f in "${REPO_DIR}"/lab/work/vm/acc-*/qemu.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2> /dev/null; done; sleep 2; return 0
+}
 vm_keep_serial() { cp "$1/serial.log" "${D}/serial-$2.log" 2>/dev/null || true; }
 vm_reboot() { # <VM 目录>：经 QEMU 监视器 system_reset
   echo system_reset | socat - "unix-connect:$1/mon.sock" > /dev/null 2>&1
@@ -67,6 +70,7 @@ install_node() { # 单台：install_start + install_wait
 # ---------- A / B：LAN 装机 ----------
 sc_lan() { # <A|B>
   local id="$1" pairs p i=0 ips=()
+  [ "${id}" = B ] && i=2   # A 的虚拟机留给 H 使用，仍占着 tap0/tap1
   if [ "${id}" = A ]; then pairs="seabios:virtio:11 seabios:e1000:12"; else pairs="ovmf:e1000e:21 ovmf:vmxnet3:22"; fi
   set_bootnet proxy_dhcp || check "引导网络" 1 "bootnet 未进入 proxy_dhcp"
   local tags=() macs=()
@@ -254,7 +258,7 @@ sc_H() {
       [ -S "${vm}/mon.sock" ] || continue
       local k
       for k in 1 2 3; do
-        local before; before="$(api GET /bootnet/observations | jq --arg m "${mac}" '[.[] | select(.mac==$m)] | length')"
+        local before; before="$(api GET /bootnet/observations | jq -r --arg m "${mac}" '[.[] | select(.mac==$m) | .detail] | .[]' | grep -c 'not_armed\|NotArmed' || true)"
         vm_reboot "${vm}"; sleep 30
         ip="$(wait_ssh "${mac}" 1200 || true)"
         local seen; seen="$(api GET /bootnet/observations | jq -r --arg m "${mac}" '[.[] | select(.mac==$m) | .detail] | .[]' | grep -c 'not_armed\|NotArmed' || true)"
@@ -266,6 +270,7 @@ sc_H() {
     done < "$f"
   done
   [ "${n}" -gt 0 ] || check "前置" 1 "没有 A/B 装好的虚拟机（先运行 A、B，并保留虚拟机）"
+  vm_stop_all
 }
 
 # ---------- I：选盘 ----------

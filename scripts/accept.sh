@@ -58,6 +58,7 @@ for id in "${RUN[@]}"; do
     *) "sc_${id}" ;;
   esac || check "场景脚本" 1 "场景函数异常退出（$?）"
   finish "${id}" | tee -a "${SUMMARY}"
+  case "${id}" in A|B) ;; *) vm_stop_all ;; esac   # 释放 tap 与 CPU；A/B 的虚拟机留给 H
 done
 
 # ---------- 报告 ----------

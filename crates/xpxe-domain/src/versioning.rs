@@ -30,6 +30,8 @@ pub enum ConfigKind {
     NodeSpec,
     /// BMC。
     Bmc,
+    /// 手动引导菜单。
+    BootMenu,
 }
 
 impl ConfigKind {
@@ -49,6 +51,7 @@ impl ConfigKind {
             Self::AssetChannels => "asset_channels",
             Self::NodeSpec => "node_spec",
             Self::Bmc => "bmc",
+            Self::BootMenu => "boot_menu",
         }
     }
 }

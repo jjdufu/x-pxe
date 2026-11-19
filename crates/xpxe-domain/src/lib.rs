@@ -9,6 +9,7 @@ pub mod decision;
 pub mod init;
 pub mod inventory;
 pub mod lifecycle;
+pub mod manual;
 pub mod option93;
 pub mod provision;
 pub mod value;
@@ -31,6 +32,7 @@ pub use lifecycle::{
     NodeRuntime, NodeState, Outcome, Persisted, SessionId, Timestamp, Transition, TransitionError,
     Ttl, apply,
 };
+pub use manual::{BootMenu, BootMenuEntry, EntryArch, EntryKind};
 pub use option93::ClientArch;
 pub use provision::{
     AptComponent, AptRepo, ArmoredKey, ComponentSet, ConsoleSet, ConsoleSpec, CryptHash,

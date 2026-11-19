@@ -8,6 +8,7 @@ pub mod bootnet;
 pub mod flow;
 pub mod harness;
 pub mod http;
+pub mod isofix;
 pub mod mirror;
 pub mod seed;
 pub mod stack;

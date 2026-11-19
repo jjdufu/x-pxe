@@ -214,19 +214,27 @@ wait_state() { # <节点> <秒> <状态…>：任一目标状态出现即返回 
   done
   log "节点 ${node} 超时，最后状态 ${s}"; return 1
 }
-node_ip() { # <mac>：br-lab 邻居表 / Kea 租约
-  ip neigh show dev "${BR}" | awk -v m="$1" 'tolower($0) ~ m {print $1; exit}'
+node_ip() { # <mac>：br-lab 邻居表；没有就对地址池与静态段做一轮 ping 扫描再查（空闲的目标机不会主动发包）
+  local ip; ip="$(ip neigh show dev "${BR}" | awk -v m="$1" 'tolower($0) ~ m && !/FAILED|INCOMPLETE/ {print $1; exit}')"
+  if [ -z "${ip}" ]; then
+    local i pids=(); for i in $(seq 50 149); do ping -c1 -W1 "10.77.0.${i}" > /dev/null 2>&1 & pids+=($!); done
+    wait "${pids[@]}" 2> /dev/null || true
+    ip="$(ip neigh show dev "${BR}" | awk -v m="$1" 'tolower($0) ~ m && !/FAILED|INCOMPLETE/ {print $1; exit}')"
+  fi
+  echo "${ip}"
 }
+# deb13-init-scripts 计划禁止 root 登录（permit_root_login=no），以计划里的运维用户登录；
+# 该用户 copy_root_keys=true，实验室公钥（追加到 root_authorized_keys）同样生效。
+LAB_SSH_USER="${LAB_SSH_USER:-jwczjzl}"
 tssh() { # <ip> <命令>
   ssh -n -i "${LAB_KEY}" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 \
-    -o LogLevel=ERROR "root@$1" "$2"
+    -o LogLevel=ERROR "${LAB_SSH_USER}@$1" "$2"
 }
 wait_ssh() { # <mac> <秒> → 打印 IP
   local deadline=$((SECONDS + $2)) ip
   while [ "${SECONDS}" -lt "${deadline}" ]; do
     ip="$(node_ip "$1")"
     if [ -n "${ip}" ] && tssh "${ip}" true 2>/dev/null; then echo "${ip}"; return 0; fi
-    ping -c1 -W1 -b 10.77.0.255 >/dev/null 2>&1 || true
     sleep 10
   done
   return 1

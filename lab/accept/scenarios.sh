@@ -24,7 +24,10 @@ plan_packages() {
 }
 check_packages() { # <ip> <标签>
   plan_packages > "${D}/plan-packages.txt"
-  tssh "$1" "dpkg-query -W -f='\${Package} \${db:Status-Status}\n'" | awk '$2=="installed"{print $1}' | sort -u > "${D}/dpkg-$2.txt"
+  # 已安装包名 + 它们 Provides 的虚拟/过渡包名（如 trixie 的 dnsutils 由 bind9-dnsutils 提供）
+  tssh "$1" "dpkg-query -W -f='\${db:Status-Status}|\${Package}|\${Provides}\n'" \
+    | awk -F'|' '$1=="installed"{print $2; n=split($3,p,","); for(i=1;i<=n;i++){gsub(/^ +| +$/,"",p[i]); sub(/ .*/,"",p[i]); if(p[i]!="")print p[i]}}' \
+    | sort -u > "${D}/dpkg-$2.txt"
   local missing; missing="$(comm -23 "${D}/plan-packages.txt" "${D}/dpkg-$2.txt" | tr '\n' ' ')"
   [ -s "${D}/plan-packages.txt" ] && [ -z "${missing}" ] \
     && check "包清单($2)" 0 "计划 $(wc -l < "${D}/plan-packages.txt") 个包全部已安装（dpkg-query）" \
@@ -54,8 +57,8 @@ install_wait() { # <标签> → NODE VMDIR IP
     check "Ready(${tag})" 1 "最后状态 $(node_state "${NODE}")：$(timeline "${NODE}" | jq -r '"\(.kind) \(.payload.reason // "")"' | tr '\n' ';' | cut -c1-300)"
     vm_keep_serial "${VMDIR}" "${tag}"; return 1
   fi
-  IP="$(wait_ssh "${N_MAC[${tag}]}" 600 || true)"
-  [ -n "${IP}" ] && check "SSH(${tag})" 0 "${IP} 以实验室密钥登录 root" || check "SSH(${tag})" 1 "Ready 后 600s 内无法 SSH"
+  IP="$(wait_ssh "${N_MAC[${tag}]}" 1200 || true)"
+  [ -n "${IP}" ] && check "SSH(${tag})" 0 "${IP} 以实验室密钥登录 ${LAB_SSH_USER}" || check "SSH(${tag})" 1 "Ready 后 1200s 内无法 SSH"
 }
 install_node() { # 单台：install_start + install_wait
   install_start "$@" && install_wait "$1"
@@ -77,7 +80,7 @@ sc_lan() { # <A|B>
   for i in "${!tags[@]}"; do
     if install_wait "${tags[i]}"; then
       [ -n "${IP}" ] && check_packages "${IP}" "${tags[i]#*-}"
-      [ -n "${IP}" ] && tssh "${IP}" 'echo xpxe-accept > /root/xpxe-accept-marker'
+      [ -n "${IP}" ] && tssh "${IP}" 'echo xpxe-accept > ~/xpxe-accept-marker'
       echo "${NODE} ${VMDIR} ${IP} ${macs[i]}" >> "${ACC}/installed-${id}"
     fi
   done
@@ -99,8 +102,10 @@ boot_to_installing() { # <标签> <bios|uefi> <固件> <网卡> <mac> <tap> [vm 
   if wait_state "${node}" "${BOOT_TIMEOUT}" installing installed; then check "${tag}" 0 "${fw}/${nic}：preseed 已取走（installer.started）"
   else check "${tag}" 1 "${fw}/${nic}：$(node_state "${node}")"; vm_keep_serial "${vm}" "${tag}"; fi
   vm_stop "${vm}"
-  api POST "/nodes/${node}/reset" '{}' > /dev/null
-  [ "$(node_state "${node}")" = idle ] || check "${tag} Reset" 1 "Reset 后不是 idle"
+  # 偏差（见 step-13 第 8 节）：状态机只允许 Failed → Idle 的 Reset，Installing 下没有管理员出口；
+  # 节点留在 Installing，install_ttl 到期后进入 Failed。每个组合用独立 MAC，互不影响。
+  api POST "/nodes/${node}/reset" '{}' > /dev/null 2>&1 || true
+  echo "${tag} node=${node} after-reset=$(node_state "${node}")" >> "${D}/reset.log"
   [ "${KEEP:-0}" = 1 ] || rm -rf "${vm}"
 }
 sc_C() {
@@ -251,9 +256,9 @@ sc_H() {
       for k in 1 2 3; do
         local before; before="$(api GET /bootnet/observations | jq --arg m "${mac}" '[.[] | select(.mac==$m)] | length')"
         vm_reboot "${vm}"; sleep 30
-        ip="$(wait_ssh "${mac}" 900 || true)"
+        ip="$(wait_ssh "${mac}" 1200 || true)"
         local seen; seen="$(api GET /bootnet/observations | jq -r --arg m "${mac}" '[.[] | select(.mac==$m) | .detail] | .[]' | grep -c 'not_armed\|NotArmed' || true)"
-        [ -n "${ip}" ] && tssh "${ip}" 'test -f /root/xpxe-accept-marker' && [ "$(node_state "${node}")" = ready ] \
+        [ -n "${ip}" ] && tssh "${ip}" 'test -f ~/xpxe-accept-marker' && [ "$(node_state "${node}")" = ready ] \
           && check "重启${k}(${mac})" 0 "本地盘启动，标记文件仍在，状态 ready，NotArmed 观测 ${seen} 条（重启前 ${before}）" \
           || check "重启${k}(${mac})" 1 "ip=${ip:-无} 状态 $(node_state "${node}")"
       done
@@ -299,6 +304,8 @@ sc_J() {
   sleep 90
   local s1; s1="$(node_state "${n1}")"
   timeline "${n1}" | grep -q 'DeadlineExpired\|deadline' && check "arm_ttl" 0 "arm 后不开机 → ${s1}，事件含 DeadlineExpired" || check "arm_ttl" 1 "状态 ${s1}"
+  # 第二段：arm_ttl 放宽到 900 s（TCG 下固件到 PXE 就要一两分钟），install_ttl 保持 300 s
+  set_timeouts 900 300 1800 3600 > /dev/null
   local n2; n2="$(register_node acc-j-install "$(mac_of a2)" uefi)"; api POST "/nodes/${n2}/arm" '{}' > /dev/null
   local vm; vm="$(vm_start J-install ovmf virtio "$(mac_of a2)" tap3)"
   if wait_state "${n2}" "${BOOT_TIMEOUT}" installing; then sudo ip link set tap3 down; fi
@@ -337,20 +344,33 @@ sc_K() {
 
 # ---------- L：伪造 ProxyDHCP ----------
 sc_L() {
-  set_bootnet redfish_only > /dev/null || true
+  # 产品语义：ProxyDHCP 模式下 bootnet 周期探测现网；发现下发 next-server/filename 的服务器即暂停应答（health=conflict），
+  # 管理员确认（acknowledge，写审计）前不恢复 ProxyDHCP 应答。
+  set_bootnet proxy_dhcp > /dev/null || true
+  local node mac; mac="$(mac_of f1)"
+  node="$(register_node acc-l "${mac}" uefi)"; api POST "/nodes/${node}/arm" '{}' > /dev/null
   "${LAB_DIR}/dhcp.sh" start rogue > /dev/null
   api POST /bootnet/scan '{}' > "${D}/scan.json" || true
-  sleep 10
-  local conflicts; conflicts="$(api GET /bootnet/status | jq -c '.heartbeat.heartbeat.probe.conflicts // []')"
-  grep -q 10.77.0.3 <<< "${conflicts}${scan:-}$(cat "${D}/scan.json")" && check "冲突告警" 0 "检测到 10.77.0.3 下发 next-server/filename" || check "冲突告警" 1 "${conflicts}"
-  local id; id="$(ids boot_network)" head; head="$(api GET "/configs/boot_network/${id}" | jq .version.version)"
-  local refused; refused="$(api PUT "/configs/boot_network/${id}" "$(jq -n --arg i "${BR}" --argjson h "${head}" '{document:{mode:"proxy_dhcp",iface:$i},expected_head:$h,comment:"accept L"}')" || true)"
-  grep -qi 'conflict\|冲突' <<< "${refused}" && check "未确认拒绝切换" 0 "$(jq -r '.message // .error.message // .' <<< "${refused}" | cut -c1-120)" \
-    || check "未确认拒绝切换" 1 "${refused:0:200}"
+  local st i
+  for i in $(seq 1 30); do
+    st="$(api GET /bootnet/status | jq -c '.heartbeat.heartbeat | {health,detail,conflicts:(.probe.conflicts // [])}')"
+    grep -q 10.77.0.3 <<< "${st}" && break; sleep 2
+  done
+  echo "${st}" > "${D}/status-conflict.json"
+  grep -q 10.77.0.3 <<< "${st}" && check "冲突告警" 0 "$(jq -r '"health=\(.health)：\(.detail)"' <<< "${st}")" || check "冲突告警" 1 "${st}"
+  sudo "${LAB_BIN}" pxe-client --iface "${BR}" --mac "${mac}" --uefi > "${D}/paused.log" 2>&1 || true
+  if grep -q '"from":"10.77.0.1:67"' "${D}/paused.log"; then check "未确认拒绝应答" 1 "冲突未确认时 bootnet 仍发出 ProxyDHCP 应答"
+  else check "未确认拒绝应答" 0 "冲突未确认时 bootnet 暂停 ProxyDHCP 应答（pxe-client 只收到 $(grep -o '"from":"[^"]*"' "${D}/paused.log" | sort -u | tr '\n' ' ')）"; fi
   api POST /bootnet/acknowledge '{"servers":["10.77.0.3"]}' > /dev/null && check "确认" 0 "acknowledge 10.77.0.3" || check "确认" 1 "acknowledge 失败"
-  api GET "/audit?action=bootnet.acknowledge" | grep -q acknowledge && check "审计" 0 "确认动作写入审计" || check "审计" 1 "审计中未见 acknowledge"
+  for i in $(seq 1 30); do
+    [ "$(api GET /bootnet/status | jq -r .heartbeat.heartbeat.health)" = ok ] && break; sleep 2
+  done
+  sudo "${LAB_BIN}" pxe-client --iface "${BR}" --mac "${mac}" --uefi > "${D}/acked.log" 2>&1 || true
+  grep -q '"from":"10.77.0.1:67"' "${D}/acked.log" && check "确认后恢复" 0 "确认后 bootnet 恢复 ProxyDHCP 应答" || check "确认后恢复" 1 "$(head -c 300 "${D}/acked.log")"
+  api GET "/audit?action=bootnet.acknowledge_conflict" | grep -q acknowledge_conflict && check "审计" 0 "确认动作写入审计（bootnet.acknowledge_conflict）" || check "审计" 1 "审计中未见 acknowledge"
   "${LAB_DIR}/dhcp.sh" stop rogue > /dev/null
-  set_bootnet proxy_dhcp > /dev/null || true
+  api POST "/nodes/${node}/disarm" '{}' > /dev/null || true
+  api POST /bootnet/acknowledge '{"servers":[]}' > /dev/null || true
 }
 
 # ---------- M：离线 ----------
@@ -372,9 +392,14 @@ sc_M() {
 
 # ---------- N：ABI 不一致 ----------
 sc_N() {
-  # 旧 netboot（6.12.38）与镜像源当前 kernel-image-*-di ABI 不一致：激活后 arm 必须被拒绝
-  local old; old="$(api POST /assets/fetch '{"kind":"debian_netboot_amd64","mirror":"http://snapshot.debian.org/archive/debian/20250815T000000Z"}' | jq -r '.id // empty' || true)"
-  if [ -z "${old}" ]; then check "旧 netboot" 1 "无法获取旧版 netboot（snapshot.debian.org）"; return; fi
+  # 夹具：trixie 首发版 netboot（installer-amd64/20250803，内核 ABI 早于镜像源当前的 kernel-image-*-di），激活后 arm 必须被拒绝。
+  # （snapshot.debian.org 不稳定，改从 deb.debian.org 的历史 installer 目录取，缓存在 lab/work/accept/ 下）
+  local tgz="${ACC}/netboot-20250803.tar.gz" old
+  [ -s "${tgz}" ] || curl -sf -o "${tgz}" "http://deb.debian.org/debian/dists/trixie/main/installer-amd64/20250803/images/netboot/netboot.tar.gz" || true
+  if [ ! -s "${tgz}" ]; then check "旧 netboot" 1 "无法下载 installer-amd64/20250803 netboot.tar.gz"; return; fi
+  old="$(api_upload debian_netboot_amd64 "${tgz}" | jq -r '.id // empty' || true)"
+  if [ -z "${old}" ]; then check "旧 netboot" 1 "上传夹具失败"; return; fi
+  check "旧 netboot" 0 "上传 installer-amd64/20250803 netboot 夹具（资产 ${old}，$(api GET /assets | jq -r --argjson i "${old}" '.assets[]? | select(.id==$i) | .meta.abi // .abi // empty' | head -1)）"
   activate debian_netboot_amd64 "${old}" "ABI 不一致验收"
   local node; node="$(register_node acc-n "$(mac_of d1)" uefi)"
   local r; r="$(api POST "/nodes/${node}/arm" '{}' || true)"

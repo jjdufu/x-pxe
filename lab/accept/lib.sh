@@ -200,10 +200,16 @@ register_node() { # <hostname> <mac> <uefi|bios> [network JSON] [channel JSON] [
   local spec
   spec="$(jq -n --arg h "$1" --arg m "$2" --arg f "$3" --argjson net "${4:-{\"type\":\"dhcp\"\}}" --argjson ch "${5:-{\"type\":\"lan\"\}}" \
     '{hostname:$h,fqdn:null,mac:$m,os_family:"debian13",firmware:$f,channel:$ch,network:$net}')"
-  # 分批重跑时同一 MAC 已登记且空闲：直接复用（产品没有删除节点的 API）
-  local existing; existing="$(api GET /nodes | jq -r --arg m "$2" --arg h "$1" \
-    '.[] | select((.mac // .spec.mac) == $m and (.hostname // .spec.hostname) == $h and .state == "idle") | .id' | head -1)"
-  if [ -n "${existing}" ]; then echo "${existing}"; return 0; fi
+  # 分批重跑时同一 MAC 已登记：空闲或已武装直接复用，已装完的用 rearm（主机名确认串）重新武装（产品没有删除节点的 API）
+  local existing state; existing="$(api GET /nodes | jq -r --arg m "$2" --arg h "$1" \
+    '.[] | select((.mac // .spec.mac) == $m and (.hostname // .spec.hostname) == $h) | "\(.id) \(.state)"' | head -1)"
+  if [ -n "${existing}" ]; then
+    read -r existing state <<< "${existing}"
+    case "${state}" in
+      ready|failed) api POST "/nodes/${existing}/rearm" "$(jq -n --arg h "$1" '{confirmation:$h}')" > /dev/null 2>&1 || true ;;
+    esac
+    echo "${existing}"; return 0
+  fi
   api POST /nodes "$(jq -n --argjson s "${spec}" --argjson p "${6:-$(ids profile)}" --argjson q "$(ids plan)" \
     '{spec:$s,profile_id:$p,init_plan_id:$q}')" | jq -r .id
 }

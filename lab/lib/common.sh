@@ -43,7 +43,7 @@ svc_stop() {
 acng_upstream() { [ -z "${XPXE_LAB_APT_UPSTREAM:-}${XPXE_LAB_APT_SECURITY_UPSTREAM:-}" ] || echo "${XPXE_LAB_APT_UPSTREAM:-}|${XPXE_LAB_APT_SECURITY_UPSTREAM:-}"; }
 acng_current() { docker inspect -f '{{index .Config.Labels "xpxe.upstream"}}' lab-acng 2>/dev/null; }
 acng_run() {
-  local c="${WORK}/acng-cache" conf="${WORK}/acng-upstream.conf"
+  local c="${WORK}/acng-cache" conf="${WORK}/acng.conf"
   mkdir -p "${c}"
   # 旧版本的容器把缓存放在容器内：重建前先拷出来
   if docker ps -a --format '{{.Names}}' | grep -qx lab-acng; then
@@ -52,12 +52,22 @@ acng_run() {
     fi
     docker rm -f lab-acng >/dev/null 2>&1 || true
   fi
-  : > "${conf}"
-  [ -n "${XPXE_LAB_APT_UPSTREAM:-}" ] && echo "Remap-xpxedeb: deb.debian.org/debian ; ${XPXE_LAB_APT_UPSTREAM%/}/" >> "${conf}"
-  [ -n "${XPXE_LAB_APT_SECURITY_UPSTREAM:-}" ] && echo "Remap-xpxesec: deb.debian.org/debian-security security.debian.org/debian-security ; ${XPXE_LAB_APT_SECURITY_UPSTREAM%/}/" >> "${conf}"
-  chmod a+r "${conf}"
+  # 回源改写：deb.debian.org/debian 走内置 Remap-debrep 的 backends_debian；debian-security 改写 Remap-secdeb 的后端。
+  # 缓存键（debrep/、secdeb/）不变，已有缓存继续可用。
+  local mounts=()
+  if [ -n "${XPXE_LAB_APT_UPSTREAM:-}" ]; then
+    echo "${XPXE_LAB_APT_UPSTREAM%/}/" > "${WORK}/acng-backends-debian"
+    chmod a+r "${WORK}/acng-backends-debian"
+    mounts+=(-v "${WORK}/acng-backends-debian:/etc/apt-cacher-ng/backends_debian:ro")
+  fi
+  if [ -n "${XPXE_LAB_APT_SECURITY_UPSTREAM:-}" ]; then
+    docker run --rm --entrypoint cat xpxe-lab/acng /etc/apt-cacher-ng/acng.conf \
+      | sed -E "s#^(Remap-secdeb: [^;]*;).*#\\1 ${XPXE_LAB_APT_SECURITY_UPSTREAM%/}/#" > "${conf}"
+    chmod a+r "${conf}"
+    mounts+=(-v "${conf}:/etc/apt-cacher-ng/acng.conf:ro")
+  fi
   docker run -d --name lab-acng -p "${LAB_IP}:3142:3142" --label "xpxe.upstream=$(acng_upstream)" \
-    -v "${c}:/var/cache/apt-cacher-ng" -v "${conf}:/etc/apt-cacher-ng/zz-xpxe-upstream.conf:ro" xpxe-lab/acng >/dev/null
+    -v "${c}:/var/cache/apt-cacher-ng" "${mounts[@]}" xpxe-lab/acng >/dev/null
   # acng 在容器内以 apt-cacher-ng 用户写缓存
   docker exec lab-acng sh -c 'chown -R apt-cacher-ng: /var/cache/apt-cacher-ng 2>/dev/null || true'
 }

@@ -180,3 +180,20 @@ lab/net.sh down                                           # 恢复 box 网络
 - A–R 全部 PASS。
 - `docs/acceptance/<日期>.md` 提交到仓库，包含镜像 digest、各场景日志路径与门禁输出。
 - `docs/ops.md` 中的安装步骤由未参与开发的人员照做一次并成功登录。
+
+## 8. 实现偏差（落地记录）
+
+| 项目 | 落地情况 | 原因 / 影响 |
+| :--- | :--- | :--- |
+| 虚拟机加速 | 本次验收在 box 上用 TCG 纯软件模拟（`scripts/accept.sh --accel tcg`，`lab/vm.sh` 的 `XPXE_LAB_ACCEL=tcg`，Redfish 的 libvirt 域随之渲染为 `type='qemu'`、`cpu mode='maximum'`） | box 宿主机每次创建 KVM vCPU 都触发内核 BUG（`kvm_spurious_fault`，`vmx_vcpu_create`），嵌套 VMX 不可用。TCG 下单台装机（d-i 约 22 min + firstboot 约 13 min + 重启）约 40 min，场景整体耗时数小时；功能结论不受影响。KVM 下的全量复验需要一台嵌套 VMX 正常的机器 |
+| bootnet 容器用户 | `user: "0:10001"`，`cap_drop: [ALL]` + `cap_add: [NET_BIND_SERVICE]`，`/proc/1/status` 的 `CapEff` 为 `0x400`；`bootnet_token` 权限 `0440`（组 10001 可读） | 方案写 UID 10001 + `NET_BIND_SERVICE`。Docker 29 / runc 对非 root 用户不设置 ambient 能力，UID 10001 下 `CapEff` 为 0，绑定 67/69 失败。UID 0 但只有一项能力、只读根、no-new-privileges，没有 `DAC_OVERRIDE`，读令牌靠组权限 |
+| 实验室 Profile 选盘 | 验收用 Profile 在 `nexus-lvm` 预设上把 `disk.prefer` 设为 `smallest` | 预设的 `unique` 规则在默认 20 GiB + 60 GiB 两块盘上按设计进入 `Failed(disk_selection)`；I 场景第二轮专门验证 `Unique` 失败路径 |
+| 目标机登录 | 验收脚本以计划中的运维用户 `jwczjzl` 登录（计划 `copy_root_keys=true`，实验室公钥追加在 `root_authorized_keys`） | `deb13-init-scripts` 设定 `permit_root_login=no`；标记文件写在该用户家目录 |
+| C 场景回到 Idle | 只到 d-i 取走 preseed（`installer.started`）即关机；节点留在 `Installing`，到 `install_ttl` 后进入 `Failed` | 状态机只允许 `Failed → Idle` 的 `Reset`，`Installing` 下没有管理员出口（Step 4 状态机设计）；每个组合用独立 MAC，互不影响 |
+| L 场景语义 | 产品行为是：ProxyDHCP 模式下 bootnet 探测到下发 `next-server`/`filename` 的服务器即暂停应答（health=`conflict`），管理员 `acknowledge`（写审计 `bootnet.acknowledge_conflict`）后恢复；配置保存本身不被拒绝 | 冲突确认为 bootnet 运行态（Step 10 / 12 偏差），重启后需重新确认 |
+| N 场景夹具 | 旧 netboot 经 `/assets/fetch` 从 `https://snapshot.debian.org/archive/debian/20250815T000000Z` 获取（ABI 6.12.38），与正式资产走同一条 InRelease 签名链 | `/assets/upload` 按设计只接受 iPXE 固件（netboot 不能上传）；snapshot 的 http 入口返回 500，https 入口可用 |
+| O 场景金丝雀 | 激活坏版本时带 `skip_canary_reason`，以 `pxe-client` 模拟“金丝雀节点”取到坏版本路径，再一键回滚 | 后端金丝雀流程未实现（Step 7 偏差） |
+| Q 场景 | `scripts/web-gate.sh` 全量 + Step 12 联调用例（`integration.spec.ts`，在 `webui-stack` 上运行，与镜像同一份源码构建） | 联调脚本依赖 `xpxe-lab simulate-install` 与独立数据目录，不直接对 compose 部署运行；被测镜像的 WebUI 静态资源由 P 场景的 HTTP/HTTPS 检查与 A–M 的 API 流程覆盖 |
+| CI 中的 Web 门禁 | 修复深色模式下选中单选卡片副标题对比度不足（sand/neutral/slate dark，`.radio-card-sub` 在 `accent-soft` 底色上 4.23:1） | 首次推送本步提交时 CI Web 门禁暴露，改为正文色 |
+| `docs/ops.md` 人工照做 | 未完成 | 需要未参与开发的人员照做一次并登录，智能体无法代替；留给用户安排 |
+| 发布 | 未打 tag、未建 Release、未推送镜像 | 按用户约束；`x-pxe:<describe>` 只在 box 本地构建 |

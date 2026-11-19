@@ -27,13 +27,14 @@ const PROFILE_PRESETS: [&str; 2] = ["nexus-lvm", "official-mirror"];
 /// 初始化计划预设。
 const PLAN_PRESETS: [&str; 2] = ["deb13-init-scripts", "minimal"];
 /// 配置历史覆盖的种类。
-const HISTORY_KINDS: [ConfigKind; 6] = [
+const HISTORY_KINDS: [ConfigKind; 7] = [
     ConfigKind::Profile,
     ConfigKind::InitPlan,
     ConfigKind::BootNetwork,
     ConfigKind::DhcpRules,
     ConfigKind::Timeouts,
     ConfigKind::NodeSpec,
+    ConfigKind::BootMenu,
 ];
 /// 配置历史最多返回条数。
 const HISTORY_LIMIT: usize = 500;

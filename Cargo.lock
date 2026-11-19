@@ -1388,6 +1388,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "ring",
  "rustls",
  "serde",
  "serde_json",

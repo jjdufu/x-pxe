@@ -20,13 +20,15 @@ use crate::app::App;
 use crate::auth::Principal;
 use crate::hub::Pushed;
 use crate::{
-    Failure, Outcome, arm, assets, auth, bmc, configs, nodeops, nodes, preview, views, web,
+    Failure, Outcome, arm, assets, auth, bmc, configs, manual, nodeops, nodes, preview, views, web,
 };
 
 /// JSON 请求体上限。
 const JSON_LIMIT: usize = 1024 * 1024;
 /// 上传上限（iPXE 固件最大 4 MiB）。
 const UPLOAD_LIMIT: usize = 4 * 1024 * 1024;
+/// ISO 分块上限（略大于 8 MiB 分块）。
+const MANUAL_CHUNK_LIMIT: usize = 9 * 1024 * 1024;
 
 /// 安全响应头。
 async fn security_headers(State(app): State<Arc<App>>, request: Request, next: Next) -> Response {
@@ -201,6 +203,25 @@ async fn api_not_found() -> Failure {
     Failure::not_found("API 不存在")
 }
 
+/// 手动引导（ISO 与菜单）路由。
+fn manual_api() -> Router<Arc<App>> {
+    Router::new()
+        .route("/isos", get(manual::list))
+        .route("/isos/uploads", post(manual::begin))
+        .route(
+            "/isos/uploads/{id}",
+            get(manual::progress)
+                .put(manual::chunk)
+                .delete(manual::abort)
+                .layer(DefaultBodyLimit::max(MANUAL_CHUNK_LIMIT)),
+        )
+        .route("/isos/uploads/{id}/complete", post(manual::complete))
+        .route("/isos/{sha}", delete(manual::delete))
+        .route("/isos/{sha}/tree", get(manual::tree))
+        .route("/boot-menu/status", get(manual::status))
+        .route("/boot-menu/preview", post(manual::preview))
+}
+
 /// `/api/v1` 路由。
 fn api() -> Router<Arc<App>> {
     Router::new()
@@ -251,6 +272,7 @@ fn api() -> Router<Arc<App>> {
         .route("/assets/rollback", post(assets::rollback))
         .route("/assets/{id}", delete(assets::delete))
         .route("/assets/{id}/verify", post(assets::verify))
+        .merge(manual_api())
         .route("/bootnet/status", get(bootnet_status))
         .route("/bootnet/observations", get(bootnet_observations))
         .route("/bootnet/scan", post(bootnet_scan))

@@ -215,6 +215,7 @@ pub async fn start(app: Arc<App>) -> io::Result<Running> {
         watcher.clone(),
     ));
     let _effects = tasks.spawn(effects::run(Arc::clone(&app), watcher.clone()));
+    let _manual = tasks.spawn(crate::manual::prepare(Arc::clone(&app)));
     let _timers = tasks.spawn(timers::run(app, watcher));
     Ok(running)
 }

@@ -115,7 +115,7 @@ fn parse_range(headers: &HeaderMap, size: u64) -> Option<(u64, u64)> {
 /// # Errors
 ///
 /// 文件缺失或读取失败时返回错误。
-async fn file(path: PathBuf, headers: &HeaderMap) -> Outcome<Response> {
+pub(crate) async fn file(path: PathBuf, headers: &HeaderMap) -> Outcome<Response> {
     let mut opened = tokio::fs::File::open(&path)
         .await
         .map_err(|_error| Failure::not_found("文件缺失"))?;

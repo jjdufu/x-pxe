@@ -37,6 +37,35 @@ pub struct Settings {
     /// bootnet 允许的网卡白名单（与 bootnet 读同一个 `XPXE_BOOTNET_ALLOWED_IFACES`），
     /// 供引导网络页只列出白名单内网卡；为空表示未配置（不做限制）。
     pub bootnet_ifaces: Vec<String>,
+    /// 手动引导：单个 ISO 上限（`XPXE_ISO_MAX_BYTES`，默认 16 GiB）。
+    pub iso_max_bytes: u64,
+    /// 手动引导：ISO 与抽取产物合计配额（`XPXE_ISO_QUOTA_BYTES`，默认 64 GiB），超额拒收。
+    pub iso_quota_bytes: u64,
+}
+
+/// 逗号或空格分隔的列表。
+fn split_list(raw: &str) -> Vec<String> {
+    raw.split([',', ' '])
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// 1 GiB。
+const GIB: u64 = 1024 * 1024 * 1024;
+
+/// 解析字节数设置。
+///
+/// # Errors
+///
+/// 不是非负整数时返回错误。
+fn bytes_setting(value: Option<String>, default: u64, name: &str) -> Result<u64, Failure> {
+    value.map_or(Ok(default), |raw| {
+        raw.trim().parse().map_err(|_error| {
+            Failure::bad_request("BAD_SETTING", format!("{name} 不是字节数：{raw}"))
+        })
+    })
 }
 
 /// 解析监听地址。
@@ -110,13 +139,18 @@ impl Settings {
             tls,
             offline: get("XPXE_OFFLINE").is_some_and(|value| value == "true" || value == "1"),
             agent_file: path("XPXE_AGENT_FILE", "/usr/local/share/xpxe/xpxe-agent"),
-            bootnet_ifaces: get("XPXE_BOOTNET_ALLOWED_IFACES").map_or_else(Vec::new, |raw| {
-                raw.split([',', ' '])
-                    .map(str::trim)
-                    .filter(|item| !item.is_empty())
-                    .map(str::to_owned)
-                    .collect()
-            }),
+            bootnet_ifaces: get("XPXE_BOOTNET_ALLOWED_IFACES")
+                .map_or_else(Vec::new, |raw| split_list(&raw)),
+            iso_max_bytes: bytes_setting(
+                get("XPXE_ISO_MAX_BYTES"),
+                GIB.saturating_mul(16),
+                "XPXE_ISO_MAX_BYTES",
+            )?,
+            iso_quota_bytes: bytes_setting(
+                get("XPXE_ISO_QUOTA_BYTES"),
+                GIB.saturating_mul(64),
+                "XPXE_ISO_QUOTA_BYTES",
+            )?,
         })
     }
 
@@ -130,6 +164,24 @@ impl Settings {
     #[must_use]
     pub fn sessions_dir(&self) -> PathBuf {
         self.data_dir.join("cache").join("sessions")
+    }
+
+    /// 手动引导 ISO（按 SHA-256 内容寻址）。
+    #[must_use]
+    pub fn manual_iso_dir(&self) -> PathBuf {
+        self.assets_dir().join("iso")
+    }
+
+    /// 手动引导 ISO 抽取产物（按 SHA-256 内容寻址）。
+    #[must_use]
+    pub fn manual_extract_dir(&self) -> PathBuf {
+        self.assets_dir().join("iso-extract")
+    }
+
+    /// 进行中的 ISO 分块上传。
+    #[must_use]
+    pub fn iso_upload_dir(&self) -> PathBuf {
+        self.data_dir.join("cache").join("iso-upload")
     }
 
     /// Redfish ISO 缓存目录。

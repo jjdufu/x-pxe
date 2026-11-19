@@ -23,6 +23,7 @@ mod effects;
 mod hub;
 mod ingest;
 mod internal;
+mod manual;
 mod nodeops;
 mod nodes;
 mod precheck;

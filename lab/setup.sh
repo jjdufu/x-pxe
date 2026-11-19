@@ -12,9 +12,14 @@ sudo usermod -aG "$(kvm_group)" "$(id -un)"
 id libvirt-qemu >/dev/null 2>&1 && sudo usermod -aG "$(kvm_group)" libvirt-qemu
 as_kvm 'test -r /dev/kvm && test -w /dev/kvm' && log "kvm-ok"
 
+if [ -d /run/systemd/system ]; then
+  log "libvirt（systemd）"
+  sudo systemctl start virtlogd.socket libvirtd.socket libvirtd.service
+else
 log "libvirt（无 systemd，手动拉起）"
 pgrep -x virtlogd >/dev/null || sudo virtlogd -d
-if ! pgrep -x libvirtd >/dev/null; then
+fi
+if [ ! -d /run/systemd/system ] && ! pgrep -x libvirtd >/dev/null; then
   sudo rm -f /run/libvirtd.pid
   sudo sed -i 's/^#\?cgroup_controllers = .*/cgroup_controllers = [ ]/' /etc/libvirt/qemu.conf
   sudo libvirtd -d
@@ -49,13 +54,23 @@ if [ ! -f "${S}/password" ]; then
 fi
 
 log "实验室镜像"
-docker build -q -t xpxe-lab/kea "${LAB_DIR}/images/kea" >/dev/null
-docker build -q -t xpxe-lab/acng "${LAB_DIR}/images/acng" >/dev/null
+# 出口受限（拉不到基础镜像）时，已导入的同名镜像可继续使用
+for img in kea acng; do
+  docker build -q -t "xpxe-lab/${img}" "${LAB_DIR}/images/${img}" >/dev/null \
+    || { docker image inspect "xpxe-lab/${img}" >/dev/null 2>&1 && log "构建 xpxe-lab/${img} 失败，沿用已有镜像"; } \
+    || die "无法构建 xpxe-lab/${img}"
+done
 
 log "探针二进制"
-(cd "${REPO_DIR}" && cargo build -q --release -p xpxe-lab)
-sudo install -d -m 0755 "${LAB_BIN_DIR}"
-sudo install -m 0755 "${REPO_DIR}/target/release/xpxe-lab" "${LAB_BIN}"
+# 没有 Rust 工具链的实验室宿主（例如独立测试虚拟机）可预先放好同一提交构建的 xpxe-lab
+if command -v cargo >/dev/null 2>&1; then
+  (cd "${REPO_DIR}" && cargo build -q --release -p xpxe-lab)
+  sudo install -d -m 0755 "${LAB_BIN_DIR}"
+  sudo install -m 0755 "${REPO_DIR}/target/release/xpxe-lab" "${LAB_BIN}"
+else
+  [ -x "${LAB_BIN}" ] || die "没有 cargo，且 ${LAB_BIN} 不存在"
+  log "无 cargo，沿用已安装的 ${LAB_BIN}"
+fi
 
 log "Debian 安装器（InRelease 签名 → SHA256SUMS → linux/initrd.gz）"
 DI="${WORK}/di"; mkdir -p "${DI}"

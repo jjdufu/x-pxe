@@ -188,4 +188,6 @@ for id in "$@"; do
   grep -q "^${id} PASS" "${D}/result" || rc=1
 done
 vm_stop_all
+# 现网 DHCP 替身恢复 coexist，免得后续 scripts/accept.sh 遇到 product 配置的 proxy_dhcp 冲突
+"${LAB_DIR}/dhcp.sh" start coexist
 exit "${rc}"

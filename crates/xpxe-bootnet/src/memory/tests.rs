@@ -56,6 +56,7 @@ fn resolves_paths() -> TestResult {
             expires_at: Timestamp::from_unix_seconds(9),
         }],
         acknowledged_conflicts: Vec::new(),
+        probe_nonce: 0,
     };
     ensure_eq(
         &resolve(&snap, "undionly.kpxe"),

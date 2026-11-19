@@ -34,6 +34,9 @@ pub struct Settings {
     pub offline: bool,
     /// 下发给目标机的 `xpxe-agent` 二进制。
     pub agent_file: PathBuf,
+    /// bootnet 允许的网卡白名单（与 bootnet 读同一个 `XPXE_BOOTNET_ALLOWED_IFACES`），
+    /// 供引导网络页只列出白名单内网卡；为空表示未配置（不做限制）。
+    pub bootnet_ifaces: Vec<String>,
 }
 
 /// 解析监听地址。
@@ -107,6 +110,13 @@ impl Settings {
             tls,
             offline: get("XPXE_OFFLINE").is_some_and(|value| value == "true" || value == "1"),
             agent_file: path("XPXE_AGENT_FILE", "/usr/local/share/xpxe/xpxe-agent"),
+            bootnet_ifaces: get("XPXE_BOOTNET_ALLOWED_IFACES").map_or_else(Vec::new, |raw| {
+                raw.split([',', ' '])
+                    .map(str::trim)
+                    .filter(|item| !item.is_empty())
+                    .map(str::to_owned)
+                    .collect()
+            }),
         })
     }
 

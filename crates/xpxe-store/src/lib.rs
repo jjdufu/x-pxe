@@ -9,6 +9,7 @@
 mod assets;
 mod audit;
 mod auth;
+mod browse;
 mod config;
 mod crypto;
 mod migrate;
@@ -32,6 +33,10 @@ pub use auth::{
     ARGON2_M_KIB, ARGON2_P, ARGON2_T, Accounts, ApiPrincipal, BACKOFF_CAP_SECS, LoginAttempt,
     NewSession, PASSWORD_MAX, PASSWORD_MIN, Role, SESSION_ABSOLUTE, SESSION_IDLE, Scope,
     SessionUser, TOKEN_MAX_TTL, TOKEN_PREFIX, TokenGrant, User, backoff_delay,
+};
+pub use browse::{
+    AUDIT_PAGE_MAX, AuditEntry, AuditPage, AuditQuery, DayOutcome, EventDetail, SESSION_KEY_LEN,
+    SessionInfo, TokenInfo, UserPatch, UserSummary,
 };
 pub use config::{Authorship, Configs, ObjectInfo, VersionInfo, VersionRef};
 pub use crypto::{MasterKey, Secrets};

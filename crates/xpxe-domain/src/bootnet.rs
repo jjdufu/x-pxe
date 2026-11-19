@@ -279,6 +279,9 @@ pub struct DirectiveSnapshot {
     /// 管理员已确认、可忽略的冲突服务器。
     #[serde(default)]
     pub acknowledged_conflicts: Vec<Ipv4Addr>,
+    /// 管理员请求的现网探测序号：变化时 bootnet 立即重新探测。
+    #[serde(default)]
+    pub probe_nonce: u64,
 }
 
 impl DirectiveSnapshot {
@@ -293,6 +296,7 @@ impl DirectiveSnapshot {
             active_firmware: None,
             directives: Vec::new(),
             acknowledged_conflicts: Vec::new(),
+            probe_nonce: 0,
         }
     }
 

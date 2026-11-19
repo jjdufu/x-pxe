@@ -91,5 +91,12 @@ pub(crate) fn snapshot(app: &App) -> Outcome<DirectiveSnapshot> {
     snapshot.rules = rules;
     snapshot.active_firmware = active_firmware(&channels(app)?);
     snapshot.directives = entries(app)?;
+    {
+        let volatile = app.volatile();
+        snapshot
+            .acknowledged_conflicts
+            .clone_from(&volatile.acknowledged);
+        snapshot.probe_nonce = volatile.probe_nonce;
+    }
     Ok(snapshot)
 }

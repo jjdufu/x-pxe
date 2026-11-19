@@ -10,7 +10,7 @@ use axum::extract::{DefaultBodyLimit, Request, State};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, patch, post};
 use futures_util::stream::{self, Stream, StreamExt as _};
 use http::{HeaderMap, HeaderValue, header};
 use serde_json::{Value, json};
@@ -19,7 +19,9 @@ use tokio::sync::broadcast::error::RecvError;
 use crate::app::App;
 use crate::auth::Principal;
 use crate::hub::Pushed;
-use crate::{Failure, Outcome, arm, assets, auth, bmc, configs, nodes, web};
+use crate::{
+    Failure, Outcome, arm, assets, auth, bmc, configs, nodeops, nodes, preview, views, web,
+};
 
 /// JSON 请求体上限。
 const JSON_LIMIT: usize = 1024 * 1024;
@@ -133,7 +135,65 @@ async fn system_info(State(app): State<Arc<App>>, _principal: Principal) -> Json
         "data_dir": settings.data_dir.display().to_string(),
         "https": settings.tls.is_some(),
         "offline": settings.offline,
+        "web_dir": settings.web_dir.display().to_string(),
+        "master_key_file": settings.master_key_file.display().to_string(),
+        "admin_password_file": settings.admin_password_file.display().to_string(),
+        "bootnet_token_file": settings.bootnet_token_file.display().to_string(),
+        "agent_file": settings.agent_file.display().to_string(),
+        "bootnet_allowed_ifaces": settings.bootnet_ifaces,
+        "tls_cert_file": settings.tls.as_ref().map(|(cert, _)| cert.display().to_string()),
     }))
+}
+
+/// `POST /bootnet/scan`：请求 bootnet 立即探测现网 DHCP。
+///
+/// # Errors
+///
+/// 角色不足时返回错误。
+async fn bootnet_scan(State(app): State<Arc<App>>, principal: Principal) -> Outcome<Json<Value>> {
+    principal.require(xpxe_store::Role::Operator)?;
+    let nonce = {
+        let mut volatile = app.volatile();
+        volatile.probe_nonce = volatile.probe_nonce.saturating_add(1);
+        volatile.probe_nonce
+    };
+    app.bump_directives();
+    app.audit(&principal.actor().record(
+        "bootnet.scan",
+        "bootnet",
+        "ok",
+        json!({ "nonce": nonce }),
+    ));
+    Ok(Json(json!({ "probe_nonce": nonce })))
+}
+
+/// 确认冲突请求。
+#[derive(Debug, serde::Deserialize)]
+struct AcknowledgeBody {
+    /// 确认可忽略的 DHCP 服务器。
+    servers: Vec<std::net::Ipv4Addr>,
+}
+
+/// `POST /bootnet/acknowledge`（仅 admin）：确认现网冲突后继续应答（写审计）。
+///
+/// # Errors
+///
+/// 角色不足时返回错误。
+async fn bootnet_acknowledge(
+    State(app): State<Arc<App>>,
+    principal: Principal,
+    Json(body): Json<AcknowledgeBody>,
+) -> Outcome<Json<Value>> {
+    principal.require(xpxe_store::Role::Admin)?;
+    app.volatile().acknowledged.clone_from(&body.servers);
+    app.bump_directives();
+    app.audit(&principal.actor().record(
+        "bootnet.acknowledge_conflict",
+        "bootnet",
+        "ok",
+        json!({ "servers": body.servers }),
+    ));
+    Ok(Json(json!({ "acknowledged": body.servers })))
 }
 
 /// 未匹配的 `/api/*`。
@@ -148,11 +208,17 @@ fn api() -> Router<Arc<App>> {
         .route("/auth/logout", post(auth::logout))
         .route("/me", get(auth::me))
         .route("/me/password", post(auth::change_password))
-        .route("/me/tokens", post(auth::issue_token))
+        .route("/me/tokens", get(views::my_tokens).post(auth::issue_token))
         .route("/me/tokens/{id}", delete(auth::revoke_token))
-        .route("/users", post(auth::create_user))
+        .route("/me/sessions", get(views::my_sessions))
+        .route("/me/sessions/{key}", delete(views::revoke_session))
+        .route("/users", get(views::users).post(auth::create_user))
+        .route("/users/{id}", patch(views::patch_user))
         .route("/nodes", get(nodes::list).post(nodes::register))
-        .route("/nodes/{id}", get(nodes::detail))
+        .route("/nodes/{id}", get(nodes::detail).put(nodeops::update))
+        .route("/nodes/{id}/spec", get(nodeops::spec))
+        .route("/nodes/{id}/timeline", get(nodeops::timeline))
+        .route("/nodes/{id}/sessions/{sid}", get(nodeops::session))
         .route("/nodes/{id}/events", get(nodes::events))
         .route("/nodes/{id}/arm", post(arm::arm))
         .route("/nodes/{id}/rearm", post(arm::rearm))
@@ -168,6 +234,13 @@ fn api() -> Router<Arc<App>> {
         .route("/configs/{kind}/{id}", get(configs::get).put(configs::save))
         .route("/configs/{kind}/{id}/versions", get(configs::versions))
         .route("/configs/{kind}/{id}/rollback", post(configs::rollback))
+        .route("/configs/{kind}/{id}/diff", get(preview::diff))
+        .route("/configs/{kind}/preview", post(preview::preview))
+        .route("/configs/{kind}/validate", post(preview::validate))
+        .route("/presets", get(views::presets))
+        .route("/init-modules", get(views::init_modules))
+        .route("/history", get(views::history))
+        .route("/overview", get(views::overview))
         .route("/assets", get(assets::list))
         .route(
             "/assets/upload",
@@ -176,8 +249,15 @@ fn api() -> Router<Arc<App>> {
         .route("/assets/fetch", post(assets::fetch))
         .route("/assets/activate", post(assets::activate))
         .route("/assets/rollback", post(assets::rollback))
+        .route("/assets/{id}", delete(assets::delete))
+        .route("/assets/{id}/verify", post(assets::verify))
         .route("/bootnet/status", get(bootnet_status))
         .route("/bootnet/observations", get(bootnet_observations))
+        .route("/bootnet/scan", post(bootnet_scan))
+        .route("/bootnet/acknowledge", post(bootnet_acknowledge))
+        .route("/bootnet/snippets", get(preview::snippets))
+        .route("/audit", get(views::audit_list))
+        .route("/audit/export", get(views::audit_export))
         .route("/audit/verify", get(audit_verify))
         .route("/system/info", get(system_info))
         .route("/events/stream", get(stream_events))

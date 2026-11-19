@@ -97,6 +97,16 @@ impl<'store> Audit<'store> {
         let since_text = ts(since)?;
         self.store.read(|conn| export(conn, &since_text, out))
     }
+
+    /// 分页查询（从新到旧）。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn page(self, query: &crate::AuditQuery) -> StoreResult<crate::AuditPage> {
+        self.store
+            .read(|conn| crate::browse::audit_page(conn, query))
+    }
 }
 
 /// 在已有事务内追加一条审计记录，返回其 ID。

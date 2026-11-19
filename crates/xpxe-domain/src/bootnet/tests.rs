@@ -48,6 +48,7 @@ fn snapshot() -> TestResult<DirectiveSnapshot> {
             expires_at: Timestamp::from_unix_seconds(9_999),
         }],
         acknowledged_conflicts: Vec::new(),
+        probe_nonce: 0,
     })
 }
 

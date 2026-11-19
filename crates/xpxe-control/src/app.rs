@@ -58,6 +58,10 @@ pub(crate) struct Volatile {
     pub(crate) boot_ips: BTreeMap<String, IpAddr>,
     /// 被第二个源 IP 命中的会话（节点 ID → 说明）。
     pub(crate) alerts: BTreeMap<i64, String>,
+    /// 管理员确认可忽略的冲突 DHCP 服务器。
+    pub(crate) acknowledged: Vec<std::net::Ipv4Addr>,
+    /// 管理员请求的现网探测序号。
+    pub(crate) probe_nonce: u64,
 }
 
 /// 控制面共享状态。

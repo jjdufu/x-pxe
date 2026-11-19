@@ -64,6 +64,7 @@ pub(crate) fn node_json(app: &App, row: &NodeRow, doc: &NodeDoc) -> Value {
         "active_session_id": row.active_session_id.as_ref().map(xpxe_domain::SessionId::as_str),
         "channel": doc.spec.channel(), "firmware": doc.spec.firmware(), "network": doc.spec.network(),
         "profile_id": doc.profile_id, "init_plan_id": doc.init_plan_id, "alert": alert,
+        "last_event_id": row.last_event_id, "spec": doc.spec, "spec_object_id": row.spec_object_id,
     })
 }
 
@@ -71,11 +72,11 @@ pub(crate) fn node_json(app: &App, row: &NodeRow, doc: &NodeDoc) -> Value {
 #[derive(Debug, Deserialize)]
 pub(crate) struct RegisterBody {
     /// 规格字段。
-    spec: Value,
+    pub(crate) spec: Value,
     /// Profile 对象 ID。
-    profile_id: i64,
+    pub(crate) profile_id: i64,
     /// 初始化计划对象 ID。
-    init_plan_id: i64,
+    pub(crate) init_plan_id: i64,
 }
 
 /// 校验登记请求，返回规格。
@@ -83,7 +84,7 @@ pub(crate) struct RegisterBody {
 /// # Errors
 ///
 /// 字段不合法、BIOS + Redfish、引用的 Profile/计划/BMC 不存在时返回 422。
-fn check_register(app: &App, body: &RegisterBody) -> Outcome<NodeSpec> {
+pub(crate) fn check_register(app: &App, body: &RegisterBody) -> Outcome<NodeSpec> {
     let parts: NodeSpecParts = serde_json::from_value(body.spec.clone()).map_err(|error| {
         Failure::invalid(vec![FieldIssue::new(
             "/spec",

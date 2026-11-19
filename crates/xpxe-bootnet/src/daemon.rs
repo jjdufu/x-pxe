@@ -259,19 +259,22 @@ async fn heartbeat(client: ControlClient, shared: Arc<Shared>) {
     }
 }
 
-/// 现网探测：启动时、模式切换时、此后每 10 分钟；快照中的确认列表变化时重新评估。
+/// 现网探测：启动时、模式切换时、管理员请求（`probe_nonce` 变化）时、此后每 10 分钟；快照中的确认列表变化时重新评估。
 async fn prober(
     shared: Arc<Shared>,
     mut snapshot: watch::Receiver<Arc<DirectiveSnapshot>>,
     probe_port: u16,
 ) {
     let mut last_network: Option<BootNetwork> = None;
+    let mut last_nonce = 0_u64;
     let mut last_run: Option<Instant> = None;
     loop {
         let current = Arc::clone(&snapshot.borrow_and_update());
-        let due = last_run.is_none_or(|at| at.elapsed() >= PROBE_EVERY);
+        let due = last_run.is_none_or(|at| at.elapsed() >= PROBE_EVERY)
+            || current.probe_nonce != last_nonce;
         if last_network.as_ref() != Some(&current.network) || due {
             last_network = Some(current.network.clone());
+            last_nonce = current.probe_nonce;
             last_run = Some(Instant::now());
             run_probe(&shared, &current, probe_port).await;
         } else {

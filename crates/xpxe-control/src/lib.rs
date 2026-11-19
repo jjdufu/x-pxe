@@ -23,12 +23,15 @@ mod effects;
 mod hub;
 mod ingest;
 mod internal;
+mod nodeops;
 mod nodes;
 mod precheck;
+mod preview;
 mod served;
 mod timers;
 mod tls;
 mod transition;
+mod views;
 mod web;
 
 use std::fmt::{Display, Formatter};

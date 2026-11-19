@@ -40,6 +40,7 @@ fn snapshot(iface: &str) -> TestResult<DirectiveSnapshot> {
             expires_at: Timestamp::from_unix_seconds(u64::MAX),
         }],
         acknowledged_conflicts: Vec::new(),
+        probe_nonce: 0,
     })
 }
 

@@ -66,6 +66,7 @@ fn snapshot(macs: &[MacAddr]) -> TestResult<DirectiveSnapshot> {
         active_firmware: Some(set),
         directives,
         acknowledged_conflicts: Vec::new(),
+        probe_nonce: 0,
     })
 }
 

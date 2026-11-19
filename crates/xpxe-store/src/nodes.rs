@@ -194,6 +194,35 @@ impl<'store> Nodes<'store> {
             )
         })
     }
+
+    /// 带详情的事件（从新到旧）；`node_id` 为 `None` 时跨全部节点。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn details(self, node_id: Option<i64>, limit: u32) -> StoreResult<Vec<crate::EventDetail>> {
+        self.store
+            .read(|conn| crate::browse::events(conn, node_id, limit))
+    }
+
+    /// 某会话的全部事件（从旧到新）。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn session_events(self, session: &str) -> StoreResult<Vec<crate::EventDetail>> {
+        self.store
+            .read(|conn| crate::browse::session_events(conn, session))
+    }
+
+    /// `since` 之后每天到达 `Ready` / `Failed` 的次数。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn outcomes(self, since: Timestamp) -> StoreResult<Vec<crate::DayOutcome>> {
+        self.store.read(|conn| crate::browse::outcomes(conn, since))
+    }
 }
 
 /// 一次完整的状态提交：事件、审计与副作用。

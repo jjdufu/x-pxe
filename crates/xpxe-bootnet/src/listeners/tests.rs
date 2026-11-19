@@ -44,6 +44,7 @@ fn snapshot(network: BootNetwork, expires: u64) -> TestResult<DirectiveSnapshot>
             expires_at: Timestamp::from_unix_seconds(expires),
         }],
         acknowledged_conflicts: Vec::new(),
+        probe_nonce: 0,
     })
 }
 

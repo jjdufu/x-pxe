@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod auth;
 #[cfg(test)]
+mod browse;
+#[cfg(test)]
 mod chain;
 #[cfg(test)]
 mod crash;

@@ -295,6 +295,7 @@ fn config(args: &Args) -> LabResult<Config> {
         active_firmware: Some(set.clone()),
         directives: entries(args, &set)?,
         acknowledged_conflicts: Vec::new(),
+        probe_nonce: 0,
     };
     Ok(Config {
         authorization: format!("Bearer {}", token.trim()),

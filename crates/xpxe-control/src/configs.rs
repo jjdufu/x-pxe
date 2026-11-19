@@ -116,6 +116,34 @@ fn writable(kind: &str) -> Outcome<()> {
     }
 }
 
+/// 引导网络须使用白名单内网卡（白名单未配置时不限制）。
+///
+/// # Errors
+///
+/// 网卡不在白名单内时返回 422。
+fn check_iface(app: &App, kind: &str, document: &Value) -> Outcome<()> {
+    if kind != "boot_network" || app.settings.bootnet_ifaces.is_empty() {
+        return Ok(());
+    }
+    let network: BootNetwork = parse_doc(document.clone())?;
+    let allowed: Vec<xpxe_domain::NetIface> = app
+        .settings
+        .bootnet_ifaces
+        .iter()
+        .filter_map(|name| xpxe_domain::NetIface::parse(name).ok())
+        .collect();
+    network
+        .check_allowed(&allowed)
+        .map_err(|errors| Failure::invalid(errors.iter().map(FieldIssue::from).collect()))
+}
+
+/// 引导相关配置变化后通知 bootnet。
+fn after_write(app: &App, kind: &str) {
+    if matches!(kind, "boot_network" | "dhcp_rules") {
+        app.bump_directives();
+    }
+}
+
 /// 种类枚举。
 ///
 /// # Errors
@@ -177,6 +205,7 @@ pub(crate) async fn create(
 ) -> Outcome<Json<Value>> {
     principal.require(Role::Operator)?;
     writable(&kind)?;
+    check_iface(&app, &kind, &body.document)?;
     let author = authorship(&app, &principal, body.comment.clone());
     let name = body.name.clone();
     let version = by_kind!(kind.as_str(), create_of, &app, body, &author)?;
@@ -186,6 +215,7 @@ pub(crate) async fn create(
         "ok",
         version.clone(),
     ));
+    after_write(&app, &kind);
     app.push(
         "config.version",
         json!({ "kind": kind, "version": version }),
@@ -260,6 +290,7 @@ pub(crate) async fn save(
 ) -> Outcome<Json<Value>> {
     principal.require(Role::Operator)?;
     writable(&kind)?;
+    check_iface(&app, &kind, &body.document)?;
     let author = authorship(&app, &principal, body.comment.clone());
     let version = by_kind!(kind.as_str(), save_of, &app, id, body, &author)?;
     app.audit(&principal.actor().record(
@@ -268,6 +299,7 @@ pub(crate) async fn save(
         "ok",
         version.clone(),
     ));
+    after_write(&app, &kind);
     app.push(
         "config.version",
         json!({ "kind": kind, "version": version }),
@@ -339,6 +371,7 @@ pub(crate) async fn rollback(
         "ok",
         version.clone(),
     ));
+    after_write(&app, &kind);
     app.push(
         "config.version",
         json!({ "kind": kind, "version": version }),

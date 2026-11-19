@@ -541,6 +541,59 @@ impl<'store> Accounts<'store> {
             )? > 0)
         })
     }
+
+    /// 全部用户。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn users(self) -> StoreResult<Vec<crate::UserSummary>> {
+        self.store.read(crate::browse::users)
+    }
+
+    /// 修改角色或禁用状态（禁用时注销其全部会话），返回修改后的用户。
+    ///
+    /// # Errors
+    ///
+    /// 用户不存在或写入失败时返回错误。
+    pub fn patch_user(self, user_id: i64, patch: crate::UserPatch) -> StoreResult<User> {
+        self.store.write(|tx| {
+            if crate::browse::patch_user(tx, user_id, patch)? {
+                user_by_id(tx, user_id)
+            } else {
+                Err(StoreError::NotFound("用户"))
+            }
+        })
+    }
+
+    /// 某用户的活动会话。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn sessions(self, user_id: i64) -> StoreResult<Vec<crate::SessionInfo>> {
+        self.store
+            .read(|conn| crate::browse::sessions(conn, user_id))
+    }
+
+    /// 注销某用户的一个会话（按会话标识）。
+    ///
+    /// # Errors
+    ///
+    /// 标识不合法或写入失败时返回错误。
+    pub fn revoke_session(self, user_id: i64, key: &str) -> StoreResult<bool> {
+        self.store
+            .write(|tx| crate::browse::revoke_session(tx, user_id, key))
+    }
+
+    /// 某用户的 API Token 列表。
+    ///
+    /// # Errors
+    ///
+    /// 查询失败时返回错误。
+    pub fn tokens(self, user_id: i64) -> StoreResult<Vec<crate::TokenInfo>> {
+        self.store.read(|conn| crate::browse::tokens(conn, user_id))
+    }
 }
 
 /// 用户名规则：1–64 位小写字母、数字、`.`、`_`、`-`。

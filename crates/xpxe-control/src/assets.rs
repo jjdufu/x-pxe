@@ -21,6 +21,8 @@ use crate::{Failure, Outcome};
 fn assets_failure(error: &AssetsError) -> Failure {
     if error.code() == "forbidden" {
         Failure::forbidden("FORBIDDEN", error.to_string())
+    } else if error.code() == "in_use" {
+        Failure::conflict("IN_USE", error.to_string())
     } else {
         Failure::bad_request(&error.code().to_ascii_uppercase(), error.to_string())
     }
@@ -273,4 +275,58 @@ pub(crate) async fn rollback(
         .map_err(|error| assets_failure(&error))?;
     app.bump_directives();
     Ok(Json(json!(version)))
+}
+
+/// `POST /assets/{id}/verify`：重新计算落盘文件的 SHA-256 并与登记值核对。
+///
+/// # Errors
+///
+/// 资产不存在或文件读取失败时返回错误。
+pub(crate) async fn verify(
+    State(app): State<Arc<App>>,
+    principal: Principal,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> Outcome<Json<Value>> {
+    principal.require(Role::Operator)?;
+    let record = app.store.assets().get(id)?;
+    let path = Catalog::new(&app.store, &app.settings.assets_dir()).path_of(&record.meta.sha256);
+    let bytes = tokio::fs::read(&path).await.map_err(crate::internal)?;
+    let actual = xpxe_render::init::sha256_hex(&bytes);
+    let intact = actual == record.meta.sha256;
+    app.audit(&principal.actor().record(
+        "asset.verify",
+        &format!("asset:{id}"),
+        if intact { "ok" } else { "error" },
+        json!({ "expected": record.meta.sha256, "actual": actual }),
+    ));
+    Ok(Json(
+        json!({ "id": id, "intact": intact, "sha256": actual, "size": bytes.len() }),
+    ))
+}
+
+/// `DELETE /assets/{id}`：仅未激活、未被开放会话固定的资产。
+///
+/// # Errors
+///
+/// 角色不足、资产仍被引用或不存在时返回错误。
+pub(crate) async fn delete(
+    State(app): State<Arc<App>>,
+    principal: Principal,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> Outcome<http::StatusCode> {
+    let actor = catalog_actor(&principal);
+    Catalog::new(&app.store, &app.settings.assets_dir())
+        .delete(
+            id,
+            Operation {
+                actor: &actor,
+                now: app.now(),
+            },
+        )
+        .map_err(|error| assets_failure(&error))?;
+    app.push(
+        "task.progress",
+        json!({ "task": "asset.delete", "asset_id": id }),
+    );
+    Ok(http::StatusCode::NO_CONTENT)
 }

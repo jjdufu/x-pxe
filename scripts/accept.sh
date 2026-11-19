@@ -43,7 +43,8 @@ mapfile -t RUN < <(ids_of "$@" | tr ' ' '\n' | grep .)
 log "被测镜像 x-pxe:${XPXE_VERSION}，加速 ${XPXE_LAB_ACCEL}，场景 ${RUN[*]}"
 [ -x "${LAB_BIN}" ] || "${LAB_DIR}/setup.sh"
 "${LAB_DIR}/net.sh" up
-docker ps --format '{{.Names}}' | grep -qx lab-dhcp || "${LAB_DIR}/dhcp.sh" start coexist
+# 每次都按 coexist 重启现网 DHCP 替身：上一次运行（E 场景或 lab/run.sh manual-*）可能留下 product 配置
+"${LAB_DIR}/dhcp.sh" start coexist
 [ "${FRESH}" = 1 ] && deploy_wipe
 deploy_up false
 api_bootstrap

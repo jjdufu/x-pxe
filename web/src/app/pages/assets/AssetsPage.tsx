@@ -8,6 +8,7 @@ import { Alert, Badge, Steps } from "../../../components/ui/feedback";
 import { Field, Input, Textarea } from "../../../components/ui/field";
 import { FileDrop } from "../../../components/ui/file-drop";
 import { Card, CardLabel, Grid, Section } from "../../../components/ui/layout";
+import { Tabs } from "../../../components/ui/tabs";
 import { Menu } from "../../../components/ui/menu";
 import { HoverCard } from "../../../components/ui/overlay";
 import { api } from "../../../lib/api";
@@ -15,6 +16,7 @@ import { fmtBytes, fmtTime, shortSha } from "../../../lib/format";
 import type { AssetRecord, AssetsView } from "../../../lib/types";
 import { AsyncView } from "../../AsyncView";
 import { useAction, useAssets, useSystemInfo } from "../../data";
+import { IsoTab } from "./IsoTab";
 
 const KINDS = [
   { kind: "ipxe_efi_x64", title: "iPXE UEFI（ipxe.efi）" },
@@ -263,14 +265,14 @@ function Dialogs({ pending, onClose, view }: { pending: Pending; onClose: () => 
   );
 }
 
-export function AssetsPage() {
+function NetbootAssets() {
   const query = useAssets();
   const system = useSystemInfo();
   const offline = system.data?.offline === true;
   const [pending, setPending] = useState<Pending>(null);
   const { perform } = useAction();
   return (
-    <Section title="资产" description="iPXE 与 Debian netboot 的版本、校验与激活。">
+    <>
       {offline && <Alert title="离线模式">XPXE_OFFLINE=true：只能上传，官方源与 URL 获取已禁用。</Alert>}
       <AsyncView
         query={query}
@@ -342,6 +344,23 @@ export function AssetsPage() {
         }
       </AsyncView>
       <Dialogs pending={pending} onClose={() => { setPending(null); }} view={query.data ?? { assets: [], channels: { channels: {} } }} />
+    </>
+  );
+}
+
+export function AssetsPage() {
+  const [tab, setTab] = useState("netboot");
+  return (
+    <Section title="资产" description="iPXE 与 Debian netboot 的版本、校验与激活；手动网络引导用的安装 ISO。">
+      <Tabs
+        label="资产类别"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { value: "netboot", label: "iPXE 与 netboot", content: <NetbootAssets /> },
+          { value: "iso", label: "ISO 镜像", content: <IsoTab /> },
+        ]}
+      />
     </Section>
   );
 }

@@ -11,6 +11,7 @@ export const PAGES: { path: string; name: string; endpoint: string }[] = [
   { path: "/init-plans", name: "初始化计划", endpoint: "/api/v1/configs/init_plan" },
   { path: "/boot-network", name: "引导网络", endpoint: "/api/v1/configs/boot_network" },
   { path: "/assets", name: "资产", endpoint: "/api/v1/assets" },
+  { path: "/boot-menu", name: "手动引导菜单", endpoint: "/api/v1/configs/boot_menu" },
   { path: "/history", name: "配置历史", endpoint: "/api/v1/history" },
   { path: "/audit", name: "审计日志", endpoint: "/api/v1/audit" },
   { path: "/settings", name: "设置", endpoint: "/api/v1/me" },
@@ -58,6 +59,8 @@ const EVENTS = [
   { id: 1, node_id: 3, hostname: "node-03", session_id: "sess-3", event_id: "e1", at: NOW - 300, source: "control", kind: "armed", from_state: "idle", to_state: "armed", payload: {} },
   { id: 2, node_id: 3, hostname: "node-03", session_id: "sess-3", event_id: "e2", at: NOW - 200, source: "installer", kind: "installer.started", from_state: "armed", to_state: "installing", payload: {} },
 ];
+
+const PVE_SHA = "e3b8c3f1".repeat(8);
 
 const POPULATED: Record<string, unknown> = {
   "/api/v1/system/info": { version: "0.1.0", boot_base_url: "http://10.0.0.2:8080", https: false, offline: true, admin_listen: "0.0.0.0:8088", data_dir: "/var/lib/xpxe", master_key_file: "/etc/xpxe/master.key", bootnet_allowed_ifaces: ["br-lab"], tls_cert_file: null },
@@ -107,6 +110,37 @@ const POPULATED: Record<string, unknown> = {
   "/api/v1/me/sessions": [{ key: "77ba047a3f1aab11", created_at: NOW - 600, last_seen_at: NOW, expires_at: NOW + 43200, ip: "10.0.0.5", user_agent: "Mozilla/5.0", current: true }],
   "/api/v1/me/tokens": [{ id: 1, name: "ci", prefix: "xpxe_ab12", scopes: ["read"], created_at: NOW - 600, expires_at: NOW + 86400 * 90 }],
   "/api/v1/bmcs": [],
+  "/api/v1/configs/boot_menu": [{ id: 7, kind: "boot_menu", name: "default", head_version: 1 }],
+  "/api/v1/configs/boot_menu/7": {
+    document: {
+      enabled: true,
+      show_unknown: false,
+      allow_macs: ["52:54:00:aa:bb:cc"],
+      default_entry: "pve",
+      timeout_s: 15,
+      chain_prefixes: [],
+      entries: [
+        { id: "pve", title: "Proxmox VE 9.2", enabled: true, arch: "any", kind: { type: "kernel_initrd", iso: PVE_SHA, kernel_path: "/boot/linux26", initrd_path: "/boot/initrd.img", cmdline: "vga=791 video=vesafb:ywrap,mtrr ramdisk_size=16777216 rw quiet splash=silent", embed_iso: true, iso_name: "proxmox.iso" } },
+        { id: "rescue", title: "整盘 ISO 救援", enabled: true, arch: "uefi", kind: { type: "sanboot", iso: PVE_SHA } },
+        { id: "local", title: "本地启动", enabled: true, arch: "any", kind: { type: "exit" } },
+      ],
+    },
+    version: { object_id: 7, version: 1, content_sha256: "d".repeat(64) },
+  },
+  "/api/v1/boot-menu/status": { enabled: true, entries: [{ id: "pve", enabled: true, action: { type: "kernel" } }, { id: "rescue", enabled: true, action: { type: "sanboot" } }, { id: "local", enabled: true, action: { type: "exit" } }] },
+  "/api/v1/isos": {
+    items: [
+      {
+        iso: { id: 1, sha256: PVE_SHA, size: 1_610_612_736, label: "proxmox-ve_9.2-1", volume_id: "PVE", hybrid: true, detected_family: "pve", detection: { family: "pve", recommended: "kernel_initrd", kernel_path: "/boot/linux26", initrd_path: "/boot/initrd.img", embed_iso: true, iso_name: "proxmox.iso" }, uploaded_by: "admin", uploaded_at: NOW - 600 },
+        referenced_by: ["pve", "rescue"],
+        extracts: [],
+      },
+    ],
+    usage_bytes: 1_610_612_736,
+    quota_bytes: 68_719_476_736,
+    max_bytes: 17_179_869_184,
+  },
+  [`/api/v1/isos/${PVE_SHA}/tree`]: { sha256: PVE_SHA, entries: [{ path: "/boot", dir: true, size: 0 }, { path: "/boot/linux26", dir: false, size: 14_000_000 }, { path: "/boot/initrd.img", dir: false, size: 60_000_000 }], detection: { family: "pve" } },
 };
 
 const EMPTY: Record<string, unknown> = {
@@ -115,6 +149,7 @@ const EMPTY: Record<string, unknown> = {
   "/api/v1/configs/profile": [],
   "/api/v1/configs/init_plan": [],
   "/api/v1/configs/boot_network": [],
+  "/api/v1/configs/boot_menu": [],
   "/api/v1/assets": { assets: [], channels: { channels: {} } },
   "/api/v1/history": [],
   "/api/v1/audit": null,
@@ -128,6 +163,13 @@ function previewOf(kind: string, body: unknown): unknown {
   const ntp = (request.document?.ntp ?? []).join(" ");
   const echo = `# context=${request.context ?? "dhcp"}\nd-i clock-setup/ntp-server string ${ntp}\n`;
   return { ok: true, fields: [], artifacts: DATA.profile_preview.artifacts.map((item) => (item.name === "preseed.cfg" ? { ...item, text: echo + item.text } : item)), changes: [], rendered_diff: [] };
+}
+
+/** 手动引导菜单预览：按条目顺序回显标签，便于断言“排序 → 预览更新”。 */
+function menuPreview(body: unknown): unknown {
+  const request = (body ?? {}) as { document?: { entries?: { id: string; title: string; enabled: boolean }[] } };
+  const lines = (request.document?.entries ?? []).filter((entry) => entry.enabled).map((entry) => `item m-${entry.id} ${entry.title}`);
+  return { mac: "52:54:00:aa:bb:cc", script: `#!ipxe\nmenu x-pxe 手动引导\n${lines.join("\n")}\n` };
 }
 
 export interface ApiMock {
@@ -158,6 +200,10 @@ export async function mockApi(page: Page, state: ApiState = "populated", target?
     const preview = /^\/api\/v1\/configs\/(\w+)\/preview$/u.exec(url.pathname);
     if (preview !== null) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(previewOf(preview[1] ?? "", request.postDataJSON())) });
+      return;
+    }
+    if (url.pathname === "/api/v1/boot-menu/preview") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(menuPreview(request.postDataJSON())) });
       return;
     }
     if (request.method() !== "GET") {

@@ -304,3 +304,80 @@ export interface SessionDetail {
   log: string;
   events: EventDetail[];
 }
+
+// ---------- 手动 ISO 网络引导（Step 14） ----------
+export interface IsoDetection {
+  family: string;
+  volume_id?: string;
+  hybrid?: boolean;
+  el_torito?: boolean;
+  joliet?: boolean;
+  rock_ridge?: boolean;
+  kernel_path?: string | null;
+  initrd_path?: string | null;
+  embed_iso?: boolean;
+  iso_name?: string | null;
+  recommended?: "sanboot" | "kernel_initrd";
+  error?: string;
+}
+
+export interface IsoRecord {
+  id: number;
+  sha256: string;
+  size: number;
+  label: string;
+  volume_id: string;
+  hybrid: boolean;
+  detected_family: string;
+  detection: IsoDetection;
+  uploaded_by: string;
+  uploaded_at: number | string;
+}
+
+export interface IsoItem {
+  iso: IsoRecord;
+  referenced_by: string[];
+  extracts: { kind: string; source_path: string; sha256: string; size: number }[];
+}
+
+export interface IsoList {
+  items: IsoItem[];
+  usage_bytes: number;
+  quota_bytes: number;
+  max_bytes: number;
+}
+
+export interface IsoTree {
+  sha256: string;
+  entries: { path: string; dir: boolean; size: number }[];
+  detection: IsoDetection;
+}
+
+export type EntryKind =
+  | { type: "sanboot"; iso: string }
+  | { type: "kernel_initrd"; iso: string; kernel_path: string; initrd_path: string; cmdline: string; embed_iso: boolean; iso_name?: string | null }
+  | { type: "chain"; url: string }
+  | { type: "exit" };
+
+export interface BootMenuEntry {
+  id: string;
+  title: string;
+  enabled: boolean;
+  arch: "any" | "bios" | "uefi";
+  kind: EntryKind;
+}
+
+export interface BootMenuDoc {
+  enabled: boolean;
+  show_unknown: boolean;
+  allow_macs: string[];
+  default_entry: string | null;
+  timeout_s: number;
+  chain_prefixes: string[];
+  entries: BootMenuEntry[];
+}
+
+export interface BootMenuStatus {
+  enabled: boolean;
+  entries: { id: string; enabled: boolean; action: { type: string; reason?: string } }[];
+}

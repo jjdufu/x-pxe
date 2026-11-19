@@ -12,6 +12,7 @@ mod auth;
 mod browse;
 mod config;
 mod crypto;
+mod isos;
 mod migrate;
 mod nodes;
 mod observations;
@@ -40,6 +41,7 @@ pub use browse::{
 };
 pub use config::{Authorship, Configs, ObjectInfo, VersionInfo, VersionRef};
 pub use crypto::{MasterKey, Secrets};
+pub use isos::{ExtractKey, ExtractRecord, IsoRecord, Isos, NewIso, UploadRecord};
 pub use nodes::{Commit, EventInsert, EventRecord, EventSummary, NewNode, NodeRow, Nodes};
 pub use observations::{Observation, Observations, RETENTION};
 pub use outbox::{Outbox, OutboxEntry, OutboxItem};
@@ -294,6 +296,12 @@ impl Store {
     #[must_use]
     pub const fn outbox(&self) -> Outbox<'_> {
         Outbox::new(self)
+    }
+
+    /// 手动引导 ISO、抽取产物与分块上传。
+    #[must_use]
+    pub const fn isos(&self) -> Isos<'_> {
+        Isos::new(self)
     }
 
     /// bootnet 观测。

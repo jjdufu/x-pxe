@@ -8,7 +8,9 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use xpxe_domain::init::TargetPlan;
-use xpxe_domain::{BootNetwork, ConfigDocument, ConfigKind, DhcpRules, Profile, Timeouts};
+use xpxe_domain::{
+    BootMenu, BootNetwork, ConfigDocument, ConfigKind, DhcpRules, Profile, Timeouts,
+};
 use xpxe_store::{Authorship, Role, Store, VersionRef};
 
 use crate::app::App;
@@ -76,12 +78,13 @@ fn authorship(app: &App, principal: &Principal, comment: Option<String>) -> Auth
 }
 
 /// 可写种类。
-const WRITABLE: [&str; 5] = [
+const WRITABLE: [&str; 6] = [
     "profile",
     "init_plan",
     "boot_network",
     "dhcp_rules",
     "timeouts",
+    "boot_menu",
 ];
 
 /// 按种类名分派到泛型函数。
@@ -93,6 +96,7 @@ macro_rules! by_kind {
             "boot_network" => $func::<BootNetwork>($($arg),*),
             "dhcp_rules" => $func::<DhcpRules>($($arg),*),
             "timeouts" => $func::<Timeouts>($($arg),*),
+            "boot_menu" => $func::<BootMenu>($($arg),*),
             "node_spec" => $func::<NodeDoc>($($arg),*),
             "bmc" => $func::<BmcDoc>($($arg),*),
             other => Err(Failure::not_found(format!("未知配置种类 {other}"))),
@@ -113,6 +117,36 @@ fn writable(kind: &str) -> Outcome<()> {
             "READ_ONLY_KIND",
             format!("{kind} 请使用专用端点修改"),
         ))
+    }
+}
+
+/// 手动引导菜单只允许 admin 修改，且条目引用的 ISO 必须存在。
+///
+/// # Errors
+///
+/// 角色不足（403）或引用了不存在的 ISO（422）时返回错误。
+fn check_menu(app: &App, principal: &Principal, kind: &str, document: &Value) -> Outcome<()> {
+    if kind != "boot_menu" {
+        return Ok(());
+    }
+    principal.require(Role::Admin)?;
+    let menu: BootMenu = parse_doc(document.clone())?;
+    let mut issues = Vec::new();
+    for (index, entry) in menu.entries.iter().enumerate() {
+        if let Some(iso) = entry.kind.iso()
+            && app.store.isos().live(iso.as_str())?.is_none()
+        {
+            issues.push(FieldIssue::new(
+                &format!("/entries/{index}/kind/iso"),
+                "unknown_iso",
+                "引用的 ISO 不存在或已删除",
+            ));
+        }
+    }
+    if issues.is_empty() {
+        Ok(())
+    } else {
+        Err(Failure::invalid(issues))
     }
 }
 
@@ -137,10 +171,13 @@ fn check_iface(app: &App, kind: &str, document: &Value) -> Outcome<()> {
         .map_err(|errors| Failure::invalid(errors.iter().map(FieldIssue::from).collect()))
 }
 
-/// 引导相关配置变化后通知 bootnet。
-fn after_write(app: &App, kind: &str) {
+/// 引导相关配置变化后通知 bootnet；菜单变化后在后台补齐抽取产物。
+fn after_write(app: &Arc<App>, kind: &str) {
     if matches!(kind, "boot_network" | "dhcp_rules") {
         app.bump_directives();
+    }
+    if kind == "boot_menu" {
+        crate::manual::spawn_prepare(app);
     }
 }
 
@@ -206,6 +243,7 @@ pub(crate) async fn create(
     principal.require(Role::Operator)?;
     writable(&kind)?;
     check_iface(&app, &kind, &body.document)?;
+    check_menu(&app, &principal, &kind, &body.document)?;
     let author = authorship(&app, &principal, body.comment.clone());
     let name = body.name.clone();
     let version = by_kind!(kind.as_str(), create_of, &app, body, &author)?;
@@ -291,6 +329,7 @@ pub(crate) async fn save(
     principal.require(Role::Operator)?;
     writable(&kind)?;
     check_iface(&app, &kind, &body.document)?;
+    check_menu(&app, &principal, &kind, &body.document)?;
     let author = authorship(&app, &principal, body.comment.clone());
     let version = by_kind!(kind.as_str(), save_of, &app, id, body, &author)?;
     app.audit(&principal.actor().record(
@@ -363,6 +402,9 @@ pub(crate) async fn rollback(
 ) -> Outcome<Json<Value>> {
     principal.require(Role::Operator)?;
     writable(&kind)?;
+    if kind == "boot_menu" {
+        principal.require(Role::Admin)?;
+    }
     let author = authorship(&app, &principal, body.comment.clone());
     let version = by_kind!(kind.as_str(), rollback_of, &app, id, &body, &author)?;
     app.audit(&principal.actor().record(

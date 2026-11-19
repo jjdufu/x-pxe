@@ -51,14 +51,17 @@ prepare_product
 
 mkdir -p "${OUT}/accept"
 SUMMARY="${OUT}/accept/summary.txt"; touch "${SUMMARY}"   # 分批运行时累加；报告取每个场景最近一次结果
-for id in "${RUN[@]}"; do
+for idx in "${!RUN[@]}"; do
+  id="${RUN[idx]}"; next="${RUN[idx + 1]:-}"
   begin "${id}"
   case "${id}" in
     A|B) sc_lan "${id}" ;;
     *) "sc_${id}" ;;
   esac || check "场景脚本" 1 "场景函数异常退出（$?）"
   finish "${id}" | tee -a "${SUMMARY}"
-  case "${id}" in A|B) ;; *) vm_stop_all ;; esac   # 释放 tap 与 CPU；A/B 的虚拟机留给 H
+  # 释放 tap 与 CPU。A/B 的虚拟机只在紧接着跑 B/H 时保留（它们占着 tap0–tap3，其他场景也要用）；
+  # H 会按 vm.sh 记录的命令行把关掉的 A/B 虚拟机从已装好的盘重新开机
+  case "${id}:${next}" in A:B|A:H|B:H) ;; *) vm_stop_all ;; esac
 done
 
 # ---------- 报告 ----------

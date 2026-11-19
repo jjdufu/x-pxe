@@ -228,7 +228,8 @@ sc_F() {
   grep -q redfish_requires_uefi <<< "${bad}" && check "BIOS+Redfish 拒绝" 0 "redfish_requires_uefi" || check "BIOS+Redfish 拒绝" 1 "${bad:0:200}"
   NODE="$(register_node acc-f-uefi "$(mac_of 71)" uefi '{"type":"dhcp"}' "${ch}")"
   api POST "/nodes/${NODE}/arm" '{}' > /dev/null
-  api POST "/nodes/${NODE}/redfish/deploy" '{}' > "${D}/deploy.json" && check "部署" 0 "$(jq -c . "${D}/deploy.json" | cut -c1-160)" || check "部署" 1 "$(cat "${D}/deploy.json")"
+  if api POST "/nodes/${NODE}/redfish/deploy" '{}' > "${D}/deploy.json"; then check "部署" 0 "$(jq -c . "${D}/deploy.json" | cut -c1-160)"
+  else check "部署" 1 "$(cat "${D}/deploy.json")"; rf_cleanup; return 0; fi   # 部署没发出就不必等装机超时
   if wait_state "${NODE}" "${INSTALL_TIMEOUT}" ready; then check "Ready" 0 "UEFI Redfish 节点装完"
   else check "Ready" 1 "最后状态 $(node_state "${NODE}")"; fi
   has_event "${NODE}" effect.eject_media && check "弹出介质" 0 "installer.started 后执行 EjectMedia" || check "弹出介质" 1 "未见 effect.eject_media"
@@ -257,7 +258,7 @@ sc_G() {
   net='{"type":"static","address":"10.77.0.81/24","gateway":"10.77.0.1","dns":["10.77.0.1"]}'
   NODE="$(register_node acc-g-static "$(mac_of 81)" uefi "${net}" "${ch}")"
   api POST "/nodes/${NODE}/arm" '{}' > /dev/null
-  api POST "/nodes/${NODE}/redfish/deploy" '{}' > "${D}/deploy.json" || check "部署" 1 "$(cat "${D}/deploy.json")"
+  api POST "/nodes/${NODE}/redfish/deploy" '{}' > "${D}/deploy.json" || { check "部署" 1 "$(cat "${D}/deploy.json")"; rf_cleanup; return 0; }
   wait_state "${NODE}" "${INSTALL_TIMEOUT}" ready && check "Ready" 0 "静态地址节点装完" || check "Ready" 1 "$(node_state "${NODE}")"
   local dhcp; dhcp="$(tcpdump -nr "${D}/capture.pcap" "ether src $(mac_of 81) and udp port 67" 2>/dev/null | wc -l)"
   [ "${dhcp}" = 0 ] && check "无 DHCP" 0 "iPXE 与 d-i 均未发 DHCP" || check "无 DHCP" 1 "${dhcp} 个 DHCP 报文"

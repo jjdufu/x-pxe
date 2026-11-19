@@ -14,6 +14,10 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[[bin]]
+name = "webui-stack"
+path = "src/bin/webui_stack.rs"
+
 [dependencies]
 xpxe-control.workspace = true
 xpxe-bootnet.workspace = true

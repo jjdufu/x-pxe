@@ -14,6 +14,7 @@
 //! - `store-smoke`：存储层冒烟（建库、版本、回滚、审计、备份，Step 6）。
 //! - `assets-smoke`：联网获取并校验资产（Step 7）。
 //! - `assets-align`：netboot 内核 ABI 与镜像源对齐检查（Step 7）。
+//! - `simulate-install`：不启动虚拟机，按目标机请求顺序走完一次装机（Step 12 联调）。
 //!
 //! 发 DHCP 的子命令只在带 10.77.0.0/24 直连路由且不承载默认路由的网卡上运行。
 
@@ -31,6 +32,7 @@ mod render;
 mod render_plan;
 mod scan;
 mod serve;
+mod simulate;
 mod store_smoke;
 mod tftp;
 
@@ -40,7 +42,7 @@ use std::process::ExitCode;
 use common::{Args, LabError, LabResult};
 
 /// 用法说明。
-const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|control-stub|serve|capture|dhcp-scan|pxe-client|iso|redfish|node-check|render|render-plan|store-smoke|assets-smoke|assets-align> [参数…]";
+const USAGE: &str = "用法：xpxe-lab <deps-check|proxydhcp|tftp|control-stub|serve|capture|dhcp-scan|pxe-client|iso|redfish|node-check|render|render-plan|store-smoke|assets-smoke|assets-align|simulate-install> [参数…]";
 
 /// 运行依赖预检并打印报告。
 ///
@@ -79,6 +81,7 @@ fn main() -> ExitCode {
         "store-smoke" => store_smoke::run(&args),
         "assets-smoke" => assets_smoke::run_smoke(&args),
         "assets-align" => assets_smoke::run_align(&args),
+        "simulate-install" => simulate::run(&args),
         _ => Err(LabError(USAGE.to_owned())),
     };
     match outcome {

@@ -148,17 +148,15 @@ pub async fn activate(
     Ok(())
 }
 
-/// 登记 netboot 夹具（内核与 initrd 按内容寻址落盘），返回资产 ID。
+/// 登记 netboot 夹具（内核与 initrd 按内容寻址落盘，未激活），返回资产 ID。
 ///
 /// # Errors
 ///
 /// 写入失败时返回错误。
-async fn netboot(harness: &Harness) -> Outcome<i64> {
-    let app = harness.app()?;
-    let dir = harness.data_dir().join("assets");
-    let (linux, _linux_path) = store_bytes(&dir, LINUX).await?;
-    let (initrd, _initrd_path) = store_bytes(&dir, INITRD).await?;
-    let (archive, _archive_path) = store_bytes(&dir, b"e2e-netboot-archive").await?;
+pub async fn stage_netboot(app: &xpxe_control::app::App, dir: &std::path::Path) -> Outcome<i64> {
+    let (linux, _linux_path) = store_bytes(dir, LINUX).await?;
+    let (initrd, _initrd_path) = store_bytes(dir, INITRD).await?;
+    let (archive, _archive_path) = store_bytes(dir, b"e2e-netboot-archive").await?;
     let asset = VerifiedAsset {
         kind: AssetKind::DebianNetbootAmd64,
         label: "e2e netboot".to_owned(),
@@ -175,7 +173,7 @@ async fn netboot(harness: &Harness) -> Outcome<i64> {
         role: Role::Admin,
         ip: "127.0.0.1".to_owned(),
     };
-    let record = Catalog::new(app.store(), &dir).register(
+    let record = Catalog::new(app.store(), dir).register(
         &asset,
         Operation {
             actor: &actor,
@@ -183,6 +181,16 @@ async fn netboot(harness: &Harness) -> Outcome<i64> {
         },
     )?;
     Ok(record.id)
+}
+
+/// 登记 netboot 夹具到测试控制面。
+///
+/// # Errors
+///
+/// 写入失败时返回错误。
+async fn netboot(harness: &Harness) -> Outcome<i64> {
+    let app = harness.app()?;
+    stage_netboot(&app, &harness.data_dir().join("assets")).await
 }
 
 /// 上传并激活全部引导资产。

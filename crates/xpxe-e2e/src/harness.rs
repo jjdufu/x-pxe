@@ -74,7 +74,7 @@ fn free_port() -> Outcome<u16> {
 /// # Errors
 ///
 /// 写入失败时返回错误。
-fn write_secret(path: &Path, content: &[u8], mode: u32) -> Outcome<()> {
+pub fn write_secret(path: &Path, content: &[u8], mode: u32) -> Outcome<()> {
     use std::os::unix::fs::PermissionsExt as _;
     std::fs::write(path, content)?;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;

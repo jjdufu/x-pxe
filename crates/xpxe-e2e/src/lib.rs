@@ -10,6 +10,7 @@ pub mod harness;
 pub mod http;
 pub mod mirror;
 pub mod seed;
+pub mod stack;
 
 /// 可跨线程传递的测试结果（异步助手的 future 须为 `Send`）。
 pub type Outcome<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;

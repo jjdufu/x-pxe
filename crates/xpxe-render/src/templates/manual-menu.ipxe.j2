@@ -1,0 +1,31 @@
+#!ipxe
+# x-pxe 手动引导菜单（不进入节点状态机）
+set base {{ boot_base }}
+:xpxe-menu
+menu x-pxe manual boot menu ({{ mac }})
+{% for item in items %}{% if item.arch == "bios" %}iseq ${platform} pcbios && {% elif item.arch == "uefi" %}iseq ${platform} efi && {% endif %}item m-{{ item.id }} {{ item.title }}
+{% endfor %}item --gap
+item xpxe-exit Local boot (exit)
+choose{% if timeout_ms %} --timeout {{ timeout_ms }}{% endif %}{% if default %} --default m-{{ default }}{% endif %} target || goto xpxe-exit
+imgfetch --name xpxe-sel ${base}/m/select?mac={{ mac }}&entry=${target} || echo x-pxe: selection callback failed
+imgfree xpxe-sel ||
+goto ${target}
+{% for item in items %}
+:m-{{ item.id }}
+echo x-pxe: {{ item.title }}
+{% if item.action.type == "sanboot" %}sanboot --no-describe ${base}/m/iso/{{ item.action.iso }}.iso || goto xpxe-failed
+{% elif item.action.type == "kernel" %}kernel ${base}/m/x/{{ item.action.kernel }} initrd=initrd{% if item.action.cmdline %} {{ item.action.cmdline }}{% endif %} || goto xpxe-failed
+initrd --name initrd ${base}/m/x/{{ item.action.initrd }} || goto xpxe-failed
+boot || goto xpxe-failed
+{% elif item.action.type == "chain" %}chain {{ item.action.url }} || goto xpxe-failed
+{% elif item.action.type == "unavailable" %}echo x-pxe: entry unavailable: {{ item.action.reason }}
+sleep 5
+goto xpxe-menu
+{% else %}goto xpxe-exit
+{% endif %}{% endfor %}
+:xpxe-failed
+echo x-pxe: boot failed, back to menu in 5 s
+sleep 5
+goto xpxe-menu
+:xpxe-exit
+exit

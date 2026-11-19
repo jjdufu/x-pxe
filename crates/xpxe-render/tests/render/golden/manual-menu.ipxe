@@ -1,0 +1,47 @@
+#!ipxe
+# x-pxe 手动引导菜单（不进入节点状态机）
+set base http://10.77.0.1:8080
+:xpxe-menu
+menu x-pxe manual boot menu (52:54:00:77:14:01)
+item m-pve Proxmox VE 9.2
+iseq ${platform} efi && item m-rescue Rescue ＄{evil}shell
+iseq ${platform} pcbios && item m-old Legacy only
+item m-broken Broken
+item m-local Local disk
+item --gap
+item xpxe-exit Local boot (exit)
+choose --timeout 15000 --default m-pve target || goto xpxe-exit
+imgfetch --name xpxe-sel ${base}/m/select?mac=52:54:00:77:14:01&entry=${target} || echo x-pxe: selection callback failed
+imgfree xpxe-sel ||
+goto ${target}
+
+:m-pve
+echo x-pxe: Proxmox VE 9.2
+kernel ${base}/m/x/ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12 initrd=initrd ro quiet splash=silent || goto xpxe-failed
+initrd --name initrd ${base}/m/x/cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12cd12 || goto xpxe-failed
+boot || goto xpxe-failed
+
+:m-rescue
+echo x-pxe: Rescue ＄{evil}shell
+sanboot --no-describe ${base}/m/iso/ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12.iso || goto xpxe-failed
+
+:m-old
+echo x-pxe: Legacy only
+chain http://10.77.0.1:8080/boot.ipxe || goto xpxe-failed
+
+:m-broken
+echo x-pxe: Broken
+echo x-pxe: entry unavailable: extract pending
+sleep 5
+goto xpxe-menu
+
+:m-local
+echo x-pxe: Local disk
+goto xpxe-exit
+
+:xpxe-failed
+echo x-pxe: boot failed, back to menu in 5 s
+sleep 5
+goto xpxe-menu
+:xpxe-exit
+exit

@@ -247,9 +247,9 @@ async fn node_update(harness: &Harness, login: &Login, ids: Ids, node: i64) -> O
         ("e2e-dup", "52:54:00:77:12:ea", ""),
     ] {
         let dup = seed::lan_spec(hostname, mac, "uefi");
-        let body = json!({ "spec": dup, "profile_id": ids.profile, "init_plan_id": ids.plan });
+        let request = json!({ "spec": dup, "profile_id": ids.profile, "init_plan_id": ids.plan });
         let reply = harness
-            .admin("POST", "/api/v1/nodes", Some(login), Some(&body))
+            .admin("POST", "/api/v1/nodes", Some(login), Some(&request))
             .await?;
         if code.is_empty() {
             ensure_eq(&reply.status, &200, "撞 MAC 失败后同一主机名可以再登记")?;

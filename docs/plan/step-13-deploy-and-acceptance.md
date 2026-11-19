@@ -185,7 +185,7 @@ lab/net.sh down                                           # 恢复 box 网络
 
 | 项目 | 落地情况 | 原因 / 影响 |
 | :--- | :--- | :--- |
-| 虚拟机加速 | 本次验收在 box 上用 TCG 纯软件模拟（`scripts/accept.sh --accel tcg`，`lab/vm.sh` 的 `XPXE_LAB_ACCEL=tcg`，Redfish 的 libvirt 域随之渲染为 `type='qemu'`、`cpu mode='maximum'`） | box 宿主机每次创建 KVM vCPU 都触发内核 BUG（`kvm_spurious_fault`，`vmx_vcpu_create`），嵌套 VMX 不可用。TCG 下单台装机（d-i 约 22 min + firstboot 约 13 min + 重启）约 40 min，场景整体耗时数小时；功能结论不受影响。KVM 下的全量复验需要一台嵌套 VMX 正常的机器 |
+| 虚拟机加速 | 本次验收在 box 上用 TCG 纯软件模拟（`scripts/accept.sh --accel tcg`，`lab/vm.sh` 的 `XPXE_LAB_ACCEL=tcg`，Redfish 的 libvirt 域随之渲染为 `type='qemu'`、`cpu mode='maximum'`） | box 宿主机每次创建 KVM vCPU 都触发内核 BUG（`kvm_spurious_fault`，`vmx_vcpu_create`），嵌套 VMX 不可用。TCG 下单台装机（d-i 约 22 min + firstboot 约 13 min + 重启）约 40 min，场景整体耗时数小时；功能结论不受影响。2026-11-19 02:20 MST 把 `/dev/kvm` 权限修为 0666（`/usr/local/bin/fix-kvm`）后复测：`qemu-system-x86_64 -accel kvm` 仍无任何固件输出，`dmesg` 新增 `kernel BUG at arch/x86/kvm/x86.c:689`（`kvm_spurious_fault`），说明问题在宿主内核/嵌套 VMX 而非权限，因此继续用 TCG。KVM 下的全量复验需要一台嵌套 VMX 正常的机器 |
 | bootnet 容器用户 | `user: "0:10001"`，`cap_drop: [ALL]` + `cap_add: [NET_BIND_SERVICE]`，`/proc/1/status` 的 `CapEff` 为 `0x400`；`bootnet_token` 权限 `0440`（组 10001 可读） | 方案写 UID 10001 + `NET_BIND_SERVICE`。Docker 29 / runc 对非 root 用户不设置 ambient 能力，UID 10001 下 `CapEff` 为 0，绑定 67/69 失败。UID 0 但只有一项能力、只读根、no-new-privileges，没有 `DAC_OVERRIDE`，读令牌靠组权限 |
 | 实验室 Profile 选盘 | 验收用 Profile 在 `nexus-lvm` 预设上把 `disk.prefer` 设为 `smallest` | 预设的 `unique` 规则在默认 20 GiB + 60 GiB 两块盘上按设计进入 `Failed(disk_selection)`；I 场景第二轮专门验证 `Unique` 失败路径 |
 | 目标机登录 | 验收脚本以计划中的运维用户 `jwczjzl` 登录（计划 `copy_root_keys=true`，实验室公钥追加在 `root_authorized_keys`） | `deb13-init-scripts` 设定 `permit_root_login=no`；标记文件写在该用户家目录 |

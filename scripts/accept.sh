@@ -50,7 +50,7 @@ api_bootstrap
 prepare_product
 
 mkdir -p "${OUT}/accept"
-SUMMARY="${OUT}/accept/summary.txt"; : > "${SUMMARY}"
+SUMMARY="${OUT}/accept/summary.txt"; touch "${SUMMARY}"   # 分批运行时累加；报告取每个场景最近一次结果
 for id in "${RUN[@]}"; do
   begin "${id}"
   case "${id}" in
@@ -75,16 +75,17 @@ mkdir -p "$(dirname "${REPORT}")"
   echo
   echo "| 场景 | 结果 | 耗时 | 日志目录 |"
   echo "| :--- | :--- | ---: | :--- |"
-  while read -r sid verdict secs dir; do
-    [[ "${sid}" =~ ^[A-R]$ ]] || continue
+  for sid in A B C D E F G H I J K L M N O P Q R; do
+    [ -s "${OUT}/accept/${sid}/result" ] || { echo "| ${sid} \`${NAMES[$sid]}\` | 未运行 | - | - |"; continue; }
+    read -r _ verdict secs dir < "${OUT}/accept/${sid}/result"
     echo "| ${sid} \`${NAMES[$sid]}\` | ${verdict} | ${secs} | \`${dir}\` |"
-  done < "${SUMMARY}"
+  done
   echo
   echo "## 明细"
   echo
   echo '```'
-  cat "${SUMMARY}"
+  for sid in A B C D E F G H I J K L M N O P Q R; do if [ -s "${OUT}/accept/${sid}/result" ]; then cat "${OUT}/accept/${sid}/result"; fi; done
   echo '```'
 } > "${REPORT}"
 log "报告：${REPORT}"
-! grep -qE '^[A-R] FAIL' "${SUMMARY}"
+for id in "${RUN[@]}"; do grep -q "^${id} PASS" "${OUT}/accept/${id}/result" || exit 1; done

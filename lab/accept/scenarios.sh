@@ -491,7 +491,13 @@ YAML
   grep -qi secure <<< "${tls}" && check "HTTPS" 0 "同一端口 8088 为 HTTPS，Cookie 带 Secure" || check "HTTPS" 1 "${tls:-无应答}"
   "${COMPOSE[@]}" up -d --wait control >> "${ACC}/compose.log" 2>&1
   # 一次性 preseed：arm 后取两次，第二次 410
-  local node tok; node="$(register_node acc-p "$(mac_of f1)" uefi)"; api POST "/nodes/${node}/arm" '{}' > /dev/null
+  # 刚重启过 control：bootnet 心跳恢复前 arm 会被拒，重试到 Armed
+  local node tok j; node="$(register_node acc-p "$(mac_of f1)" uefi)"
+  for j in $(seq 1 20); do
+    [ "$(api POST "/nodes/${node}/arm" '{}' 2> /dev/null | jq -r '.to // empty' 2> /dev/null)" = armed ] && break
+    [ "$(node_state "${node}")" = armed ] && break; sleep 3
+  done
+  echo "arm 尝试 ${j} 次，状态 $(node_state "${node}")" > "${D}/preseed-arm.txt"
   local i; for i in $(seq 1 15); do
     tok="$(curl -s "${BASE}/boot/mac/$(mac_of f1 | tr ':' '-')" | sed -nE 's#.*(/p/[^/ ]+)/.*#\1#p' | head -1)"
     [ -n "${tok}" ] && break; sleep 2

@@ -214,6 +214,20 @@ fn rotate(old: &Path, new: &Path) -> Result<(), String> {
     say("主密钥已轮换；请把 XPXE_MASTER_KEY_FILE 指向新密钥后重启")
 }
 
+/// 版本行：包版本、`git describe`、提交、构建时间与 rustc 版本（后四项由镜像构建经环境变量注入，缺省为 `unknown`）。
+#[must_use]
+pub fn version_line() -> String {
+    format!(
+        "{} {} (describe {}, commit {}, built {}, {})",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        option_env!("XPXE_GIT_DESCRIBE").unwrap_or("unknown"),
+        option_env!("XPXE_GIT_COMMIT").unwrap_or("unknown"),
+        option_env!("XPXE_BUILD_TIME").unwrap_or("unknown"),
+        option_env!("XPXE_RUSTC").unwrap_or("rustc unknown"),
+    )
+}
+
 /// 执行命令。
 ///
 /// # Errors
@@ -253,11 +267,7 @@ pub async fn run(command: Command) -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
             say(&format!("已备份到 {}", out.display()))
         }
-        Command::Version => say(&format!(
-            "{} {}",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        )),
+        Command::Version => say(&version_line()),
     }
 }
 

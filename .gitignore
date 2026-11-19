@@ -10,6 +10,8 @@
 # 本地密钥与数据
 /deploy/secrets/*
 !/deploy/secrets/*.example
+!/deploy/secrets/README.md
+/deploy/.env
 /data/
 # iPXE 等二进制固件不入库：通过 WebUI 下载或上传
 *.efi
@@ -28,3 +30,4 @@ __MACOSX/
 .vscode/
 *.swp
 __pycache__/
+/lab/kea/product.json

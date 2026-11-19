@@ -123,6 +123,48 @@ fn read_bootnet_token(settings: &Settings) -> Result<String, Failure> {
     Ok(format!("Bearer {token}"))
 }
 
+/// 复核 `xpxe-agent` 的 SHA-256：镜像构建时在同目录写入 `<agent>.sha256`，
+/// 存在时必须与文件内容一致，否则拒绝启动；agent 文件本身缺失只告警（arm 前置检查会报 `AGENT_MISSING`）。
+///
+/// # Errors
+///
+/// 摘要文件存在但 agent 缺失、不可读或摘要不一致时返回错误。
+pub fn verify_agent_digest(agent: &std::path::Path) -> Result<Option<String>, Failure> {
+    let mut sidecar = agent.as_os_str().to_owned();
+    sidecar.push(".sha256");
+    let expected = match std::fs::read_to_string(&sidecar) {
+        Ok(text) => text
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase(),
+        Err(_missing) => {
+            if !agent.exists() {
+                tracing::warn!(agent = %agent.display(), "xpxe-agent 不存在，arm 将被前置检查拒绝");
+            }
+            return Ok(None);
+        }
+    };
+    let bytes = std::fs::read(agent).map_err(|error| {
+        Failure::bad_request(
+            "AGENT_DIGEST_MISMATCH",
+            format!("读取 {}：{error}", agent.display()),
+        )
+    })?;
+    let actual = xpxe_render::init::sha256_hex(&bytes);
+    if actual == expected {
+        Ok(Some(actual))
+    } else {
+        Err(Failure::bad_request(
+            "AGENT_DIGEST_MISMATCH",
+            format!(
+                "{} 的 SHA-256 为 {actual}，与构建时记录的 {expected} 不一致",
+                agent.display()
+            ),
+        ))
+    }
+}
+
 impl App {
     /// 打开数据目录并建立共享状态（含初始管理员）。
     ///
@@ -133,6 +175,9 @@ impl App {
         let (key, warnings) = MasterKey::load(&settings.master_key_file)?;
         for warning in warnings {
             tracing::warn!(%warning, "主密钥文件权限");
+        }
+        if let Some(digest) = verify_agent_digest(&settings.agent_file)? {
+            tracing::info!(%digest, "xpxe-agent 摘要复核通过");
         }
         for dir in [
             settings.assets_dir(),

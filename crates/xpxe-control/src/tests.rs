@@ -29,3 +29,38 @@ fn errors_map_to_status_and_code() -> TestResult {
     ensure_eq(&invalid.fields().len(), &1, "字段错误")?;
     Ok(())
 }
+
+/// 镜像内 agent 摘要复核：无摘要文件放行，摘要一致通过，不一致拒绝启动。
+///
+/// # Errors
+///
+/// 断言失败或临时文件写入失败时返回错误。
+#[test]
+fn agent_digest_is_verified_when_sidecar_present() -> TestResult {
+    let dir = xpxe_test_support::TempDataDir::new()?;
+    let agent = dir.path().join("xpxe-agent");
+    std::fs::write(&agent, b"agent-bytes")?;
+    ensure_eq(
+        &crate::app::verify_agent_digest(&agent).ok(),
+        &Some(None),
+        "无摘要文件",
+    )?;
+    let digest = xpxe_render::init::sha256_hex(b"agent-bytes");
+    std::fs::write(
+        dir.path().join("xpxe-agent.sha256"),
+        format!("{digest}  xpxe-agent\n"),
+    )?;
+    ensure_eq(
+        &crate::app::verify_agent_digest(&agent).ok(),
+        &Some(Some(digest)),
+        "摘要一致",
+    )?;
+    std::fs::write(&agent, b"tampered")?;
+    let refused = crate::app::verify_agent_digest(&agent).err();
+    ensure_eq(
+        &refused.as_ref().map(Failure::code),
+        &Some("AGENT_DIGEST_MISMATCH"),
+        "摘要不一致拒绝",
+    )?;
+    Ok(())
+}

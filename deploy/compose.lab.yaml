@@ -1,0 +1,24 @@
+# 实验室覆盖文件（scripts/accept.sh 使用）：
+#   docker compose -f deploy/compose.yaml -f deploy/compose.lab.yaml up -d
+# 引导地址指向 br-lab（10.77.0.1），bootnet 只在 br-lab 上应答；管理端只发布到回环；
+# control 网络固定子网 172.30.77.0/24，离线场景（M）在 DOCKER-USER 链按该子网封禁出站。
+services:
+  control:
+    ports: !override
+      - "127.0.0.1:8088:8088"
+      - "10.77.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
+    environment:
+      XPXE_BOOT_BASE_URL: http://10.77.0.1:8080
+      XPXE_BOOTNET_ALLOWED_IFACES: br-lab
+    networks: [lab]
+  bootnet:
+    environment:
+      XPXE_BOOTNET_ALLOWED_IFACES: br-lab
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.77.0/24

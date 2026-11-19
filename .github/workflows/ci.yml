@@ -90,7 +90,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: 镜像冒烟
-        run: docker run --rm xpxe:ci --version
+        run: |
+          docker run --rm xpxe:ci --version
+          if docker run --rm --entrypoint /bin/sh xpxe:ci -c true 2>/dev/null; then echo "镜像里不应有 shell"; exit 1; fi
+          docker run --rm --entrypoint /usr/local/bin/xpxe-bootnet xpxe:ci --version
+      - name: Compose 文件校验（不启动）
+        run: |
+          cd deploy
+          cp .env.example .env
+          mkdir -p secrets && touch secrets/master_key secrets/admin_initial_password secrets/bootnet_token
+          docker compose -f compose.yaml config -q
+          XPXE_VERSION=ci docker compose -f compose.yaml -f compose.lab.yaml config -q
 
   lab:
     name: KVM 实验室（仅在 /dev/kvm 可用时运行）

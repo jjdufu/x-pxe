@@ -70,3 +70,17 @@ fn since_accepts_rfc3339_and_unix() -> TestResult {
     ensure(parse_since("昨天").is_err(), "非法格式")?;
     Ok(())
 }
+
+/// 版本行包含包名、版本与构建信息字段。
+///
+/// # Errors
+///
+/// 断言失败时返回错误。
+#[test]
+fn version_line_has_build_fields() -> TestResult {
+    let line = super::version_line();
+    ensure(line.starts_with("xpxe-control "), "包名")?;
+    ensure(line.contains("commit "), "提交")?;
+    ensure(line.contains("built "), "构建时间")?;
+    Ok(())
+}

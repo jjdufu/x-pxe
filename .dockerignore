@@ -5,3 +5,9 @@ lab/work
 lab/out
 .git
 **/.DS_Store
+web/dist-gallery
+web/test-results
+web/playwright-report
+deploy/secrets
+docs
+legacy

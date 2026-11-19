@@ -74,6 +74,7 @@ sc_lan() { # <A|B>
   if [ "${id}" = A ]; then pairs="seabios:virtio:11 seabios:e1000:12"; else pairs="ovmf:e1000e:21 ovmf:vmxnet3:22"; fi
   set_bootnet proxy_dhcp || check "引导网络" 1 "bootnet 未进入 proxy_dhcp"
   local tags=() macs=()
+  : > "${ACC}/installed-${id}"   # 只记录本次运行装好的节点（--fresh 后节点 ID 会重新编号）
   for p in ${pairs}; do
     IFS=: read -r fw nic m <<< "${p}"
     local mode=bios; [ "${fw}" = seabios ] || mode=uefi

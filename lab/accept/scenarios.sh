@@ -536,8 +536,11 @@ sc_Q() {
   ( cd "${REPO_DIR}" && scripts/web-gate.sh ) > "${D}/web-gate.log" 2>&1 \
     && check "web-gate" 0 "$(grep -E 'Tests +[0-9]+ passed|[0-9]+ passed' "${D}/web-gate.log" | tr '\n' ' ')" \
     || check "web-gate" 1 "$(grep -E 'failed|✘' "${D}/web-gate.log" | head -5 | tr '\n' ' ')"
+  # 联调栈（webui-stack）固定监听 127.0.0.1:8088/8080，与被测部署的管理端口冲突：联调期间先停被测部署，结束后原样拉起
+  "${COMPOSE[@]}" stop >> "${ACC}/compose.log" 2>&1 || true
   ( cd "${REPO_DIR}/web" && npx playwright test e2e/integration.spec.ts ) > "${D}/integration.log" 2>&1 \
     && check "联调 8 步" 0 "$(grep -E 'passed' "${D}/integration.log" | tail -1)" || check "联调 8 步" 1 "$(tail -5 "${D}/integration.log" | tr '\n' ' ')"
+  deploy_up false
   # 对被测镜像：容器内 /web 与本次构建产物一致，且页面可登录（API 冒烟）
   local idx; idx="$(curl -s "${API%/api/v1}/" | grep -o 'assets/main-[^"]*\.js' | head -1)"
   [ -n "${idx}" ] && curl -s -o /dev/null -w '%{http_code}' "${API%/api/v1}/${idx}" | grep -qx 200 \

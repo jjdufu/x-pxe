@@ -239,8 +239,8 @@ sc_F() {
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=${LAB_IP}/O=rotated" \
     -addext "subjectAltName=IP:${LAB_IP}" -keyout "${S}/key.pem" -out "${S}/cert.pem" 2>/dev/null
   rf_start_sushy
-  api POST "/nodes/${NODE}/reset" '{}' > /dev/null 2>&1 || true
-  api POST "/nodes/${NODE}/arm" '{}' > /dev/null 2>&1 || true
+  # Ready 节点重新武装要走 rearm 并带主机名确认串（reset + arm 对 Ready 节点无效）
+  api POST "/nodes/${NODE}/rearm" '{"confirmation":"acc-f-uefi"}' > "${D}/rearm.json" 2>&1 || true
   local again; again="$(api POST "/nodes/${NODE}/redfish/deploy" '{}' || true)"
   grep -qi 'cert\|fingerprint\|指纹' <<< "${again}" && check "证书变化拒绝" 0 "$(jq -r '.message // .error.message // .' <<< "${again}" | cut -c1-120)" \
     || check "证书变化拒绝" 1 "${again:0:200}"
@@ -262,7 +262,11 @@ sc_G() {
   wait_state "${NODE}" "${INSTALL_TIMEOUT}" ready && check "Ready" 0 "静态地址节点装完" || check "Ready" 1 "$(node_state "${NODE}")"
   local dhcp; dhcp="$(tcpdump -nr "${D}/capture.pcap" "ether src $(mac_of 81) and udp port 67" 2>/dev/null | wc -l)"
   [ "${dhcp}" = 0 ] && check "无 DHCP" 0 "iPXE 与 d-i 均未发 DHCP" || check "无 DHCP" 1 "${dhcp} 个 DHCP 报文"
-  local addr; addr="$(tssh 10.77.0.81 'ip -4 -o addr show scope global' 2>/dev/null | awk '{print $4}')"
+  # Ready 上报后 agent 会重启系统，等它重新起来再登录（最多 180 秒）
+  local addr="" deadline=$((SECONDS + 180))
+  while [ -z "${addr}" ] && [ "${SECONDS}" -lt "${deadline}" ]; do
+    addr="$(tssh 10.77.0.81 'ip -4 -o addr show scope global' 2>/dev/null | awk '{print $4}')"; [ -n "${addr}" ] || sleep 5
+  done
   [ "${addr}" = 10.77.0.81/24 ] && check "ip addr" 0 "装完后 ip addr 为 10.77.0.81/24" || check "ip addr" 1 "得到 ${addr:-无法登录}"
   rf_cleanup
   "${LAB_DIR}/dhcp.sh" start coexist > /dev/null

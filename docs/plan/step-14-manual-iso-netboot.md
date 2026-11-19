@@ -131,3 +131,16 @@ lab/run.sh manual-pve         # PVE 9.2 ISO：kernel_initrd + embed_iso，UEFI �
 | 菜单被未授权机器使用 | 误装或信息暴露 | 默认关闭、MAC 白名单、`/m/*` 无机密、全部审计；与状态机通道隔离 |
 | ISO 解析器面对恶意或损坏 ISO | 越界读取、无限循环 | 纯安全 Rust、目录深度与条目数上限、循环检测、模糊测试夹具；解析失败只标记“未识别”，不影响其他功能 |
 | 磁盘占用 | `/data` 写满影响装机主链路 | ISO 与抽取产物单独配额，超额拒收；删除 ISO 级联清理抽取产物 |
+
+## 7. 实现偏差（落地记录）
+
+| 项目 | 落地情况 | 原因 / 影响 |
+| :--- | :--- | :--- |
+| 模板位置 | `crates/xpxe-render/src/templates/manual-menu.ipxe.j2`（与其他模板同目录），黄金快照 `tests/render/golden/manual-menu.ipxe` | 沿用 xpxe-render 现有模板目录约定，方案写的 `templates/` 不存在 |
+| 磁盘余量检查 | 以 ISO 配额代替“磁盘剩余低于阈值”：`XPXE_ISO_MAX_BYTES`（单文件，默认 16 GiB）与 `XPXE_ISO_QUOTA_BYTES`（ISO + 抽取产物总量，默认 64 GiB），开始上传时按“已用 + 本次”判定，单文件超限 413 `TOO_LARGE`、总量超限 507 `QUOTA_EXCEEDED` | 工作区禁止 `unsafe`/libc，标准库没有 statvfs；配额同样保证 `/data` 不被 ISO 写满（风险表“磁盘占用”的对策） |
+| `/m/*` 限速 | 带 `Range` 头的 `/m/` 请求不计入每 IP 限速，其余（菜单脚本、整份下载、回调）照常计数 | sanboot 按块读取 ISO，一次启动就有成千上万个 Range 请求，计数会把目标机自己限住 |
+| 抽取时机 | 菜单保存后与控制面启动时在后台抽取（`spawn_prepare`），条目在产物就绪前渲染为“不可用：extract pending/running”，`GET /boot-menu/status` 可查询 | PVE 的 initrd+ISO 约 1.7 GiB，同步抽取会阻塞保存请求 |
+| 删除仍被引用的 ISO | 允许（admin、AlertDialog 列出引用条目），条目随即渲染为“不可用：iso deleted”，抽取产物级联删除 | 方案只要求删除前列出引用；不阻止删除，避免菜单与 ISO 互相锁死 |
+| 路径 `Combobox` | 编辑抽屉中内核/initrd 路径用原生 `<input list>` + `<datalist>`（候选来自 `/isos/{sha}/tree` 的文件），可自由输入 | 组件库只有多选 `MultiCombobox`；datalist 原生可键盘操作且离线 |
+| 保存差异与回滚 | 保存走 `SingletonSave`（变更说明 + 版本链）；差异与回滚在“配置历史”页（新增 `boot_menu` 类型标签） | 与其他单例配置一致，不在菜单页重复实现 |
+| 菜单入口链路 | 按 3.2 节：bootnet 对未武装 MAC 照常不应答，手动通道依赖现网 DHCP 指向 `/boot.ipxe`（`external_dhcp` + 产品 Kea 片段）；ProxyDHCP 模式下未武装机器不会进入菜单 | 与方案一致，在此明确：实验室场景用 `external_dhcp` |

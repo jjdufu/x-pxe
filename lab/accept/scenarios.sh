@@ -395,14 +395,14 @@ sc_M() {
 
 # ---------- N：ABI 不一致 ----------
 sc_N() {
-  # 夹具：trixie 首发版 netboot（installer-amd64/20250803，内核 ABI 早于镜像源当前的 kernel-image-*-di），激活后 arm 必须被拒绝。
-  # （snapshot.debian.org 不稳定，改从 deb.debian.org 的历史 installer 目录取，缓存在 lab/work/accept/ 下）
-  local tgz="${ACC}/netboot-20250803.tar.gz" old
-  [ -s "${tgz}" ] || curl -sf -o "${tgz}" "http://deb.debian.org/debian/dists/trixie/main/installer-amd64/20250803/images/netboot/netboot.tar.gz" || true
-  if [ ! -s "${tgz}" ]; then check "旧 netboot" 1 "无法下载 installer-amd64/20250803 netboot.tar.gz"; return; fi
-  old="$(api_upload debian_netboot_amd64 "${tgz}" | jq -r '.id // empty' || true)"
-  if [ -z "${old}" ]; then check "旧 netboot" 1 "上传夹具失败"; return; fi
-  check "旧 netboot" 0 "上传 installer-amd64/20250803 netboot 夹具（资产 ${old}，$(api GET /assets | jq -r --argjson i "${old}" '.assets[]? | select(.id==$i) | .meta.abi // .abi // empty' | head -1)）"
+  # 夹具：snapshot.debian.org 2025-08-15 的 trixie netboot（内核 ABI 6.12.38，早于镜像源当前的 kernel-image-*-di），
+  # 经 /assets/fetch 走同样的 InRelease 签名链校验后激活，arm 必须被拒绝。
+  # （snapshot 的 http 入口返回 500，https 入口 302 到 /file/<sha>，产品客户端可跟随；/assets/upload 只接受 iPXE 固件。）
+  local old r0
+  r0="$(api POST /assets/fetch '{"kind":"debian_netboot_amd64","mirror":"https://snapshot.debian.org/archive/debian/20250815T000000Z"}' || true)"
+  old="$(jq -r '.id // empty' <<< "${r0}" 2> /dev/null || true)"
+  if [ -z "${old}" ]; then check "旧 netboot" 1 "获取失败：${r0:0:200}"; return; fi
+  check "旧 netboot" 0 "获取 snapshot 20250815 netboot（资产 ${old}，ABI $(jq -r .kernel_abi <<< "${r0}")）"
   activate debian_netboot_amd64 "${old}" "ABI 不一致验收"
   local node; node="$(register_node acc-n "$(mac_of d1)" uefi)"
   local r; r="$(api POST "/nodes/${node}/arm" '{}' || true)"

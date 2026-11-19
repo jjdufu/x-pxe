@@ -155,6 +155,25 @@ pub(crate) async fn register(
 ) -> Outcome<Json<Value>> {
     principal.require(Role::Operator)?;
     let spec = check_register(&app, &body)?;
+    // 先查重再写：配置对象与节点行分两步创建，任何一步撞唯一约束都不能留下半条记录（也不能是 500）
+    let mut duplicates = Vec::new();
+    if app.store.nodes().by_mac(spec.mac())?.is_some() {
+        duplicates.push(FieldIssue::new(
+            "/spec/mac",
+            "duplicate_mac",
+            "该 MAC 已登记为其他节点",
+        ));
+    }
+    if find_by_name(&app.store, NodeDoc::KIND, spec.hostname().as_str())?.is_some() {
+        duplicates.push(FieldIssue::new(
+            "/spec/hostname",
+            "duplicate_hostname",
+            "该主机名已被其他节点使用",
+        ));
+    }
+    if !duplicates.is_empty() {
+        return Err(Failure::invalid(duplicates));
+    }
     let now = app.now();
     let doc = NodeDoc {
         spec,

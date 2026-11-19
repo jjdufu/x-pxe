@@ -240,6 +240,27 @@ async fn node_update(harness: &Harness, login: &Login, ids: Ids, node: i64) -> O
         refused.status == 422 || refused.status == 409,
         &format!("改主机名被拒：{}", refused.status),
     )?;
+    // 重复 MAC / 主机名登记：422 字段错误，且不留半条记录（换新 MAC 后原主机名仍报重名而不是 500）
+    for (hostname, mac, code) in [
+        ("e2e-dup", "52:54:00:77:12:e2", "duplicate_mac"),
+        ("e2e-ui", "52:54:00:77:12:e9", "duplicate_hostname"),
+        ("e2e-dup", "52:54:00:77:12:ea", ""),
+    ] {
+        let dup = seed::lan_spec(hostname, mac, "uefi");
+        let body = json!({ "spec": dup, "profile_id": ids.profile, "init_plan_id": ids.plan });
+        let reply = harness
+            .admin("POST", "/api/v1/nodes", Some(login), Some(&body))
+            .await?;
+        if code.is_empty() {
+            ensure_eq(&reply.status, &200, "撞 MAC 失败后同一主机名可以再登记")?;
+        } else {
+            ensure_eq(&reply.status, &422, &format!("{code}：{}", reply.text()))?;
+            ensure(
+                reply.text().contains(code),
+                &format!("{code}：{}", reply.text()),
+            )?;
+        }
+    }
     Ok(())
 }
 

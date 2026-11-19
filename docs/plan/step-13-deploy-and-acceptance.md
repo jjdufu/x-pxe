@@ -190,7 +190,8 @@ lab/net.sh down                                           # 恢复 box 网络
 | 实验室 Profile 选盘 | 验收用 Profile 在 `nexus-lvm` 预设上把 `disk.prefer` 设为 `smallest` | 预设的 `unique` 规则在默认 20 GiB + 60 GiB 两块盘上按设计进入 `Failed(disk_selection)`；I 场景第二轮专门验证 `Unique` 失败路径 |
 | 目标机登录 | 验收脚本以计划中的运维用户 `jwczjzl` 登录（计划 `copy_root_keys=true`，实验室公钥追加在 `root_authorized_keys`） | `deb13-init-scripts` 设定 `permit_root_login=no`；标记文件写在该用户家目录 |
 | C 场景回到 Idle | 只到 d-i 取走 preseed（`installer.started`）即关机；节点留在 `Installing`，到 `install_ttl` 后进入 `Failed` | 状态机只允许 `Failed → Idle` 的 `Reset`，`Installing` 下没有管理员出口（Step 4 状态机设计）；每个组合用独立 MAC，互不影响 |
-| L 场景语义 | 产品行为是：ProxyDHCP 模式下 bootnet 探测到下发 `next-server`/`filename` 的服务器即暂停应答（health=`conflict`），管理员 `acknowledge`（写审计 `bootnet.acknowledge_conflict`）后恢复；配置保存本身不被拒绝 | 冲突确认为 bootnet 运行态（Step 10 / 12 偏差），重启后需重新确认 |
+| L 场景语义 | 产品行为是：ProxyDHCP 模式下 bootnet 探测到下发 `next-server`/`filename` 的服务器即暂停应答（health=`conflict`），管理员 `acknowledge`（写审计 `bootnet.acknowledge_conflict`）后恢复；配置保存本身不被拒绝 | 冲突确认为 bootnet 运行态（Step 10 / 12 偏差），重启后需重新确认；冲突源下线后 bootnet 要到下一次探测（每 10 min，或管理员点“探测”）才退出暂停，期间 arm 前置检查报 `BOOTNET_CONFLICT`，验收脚本收尾时主动请求探测 |
+| 节点登记查重（验收中发现并修复） | 重复 MAC 登记原先返回 500 且遗留同名规格配置对象，使该主机名再也无法登记；现登记前查重，返回 422（`duplicate_mac` / `duplicate_hostname`），不写任何记录 | 在 L 场景与 P 场景共用 MAC 时暴露；修复后镜像重建、全部场景在修复后的镜像上重跑 |
 | N 场景夹具 | 旧 netboot 经 `/assets/fetch` 从 `https://snapshot.debian.org/archive/debian/20250815T000000Z` 获取（ABI 6.12.38），与正式资产走同一条 InRelease 签名链 | `/assets/upload` 按设计只接受 iPXE 固件（netboot 不能上传）；snapshot 的 http 入口返回 500，https 入口可用 |
 | O 场景金丝雀 | 激活坏版本时带 `skip_canary_reason`，以 `pxe-client` 模拟“金丝雀节点”取到坏版本路径，再一键回滚 | 后端金丝雀流程未实现（Step 7 偏差） |
 | Q 场景 | `scripts/web-gate.sh` 全量 + Step 12 联调用例（`integration.spec.ts`，在 `webui-stack` 上运行，与镜像同一份源码构建） | 联调脚本依赖 `xpxe-lab simulate-install` 与独立数据目录，不直接对 compose 部署运行；被测镜像的 WebUI 静态资源由 P 场景的 HTTP/HTTPS 检查与 A–M 的 API 流程覆盖 |

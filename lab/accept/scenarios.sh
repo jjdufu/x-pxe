@@ -89,10 +89,26 @@ sc_lan() { # <A|B>
     fi
   done
   if [ "${id}" = B ]; then
-    local r4011 tftp
+    local r4011 tftp proxy
+    proxy="$(tcpdump -nr "${D}/capture.pcap" "src host ${LAB_IP} and udp src port 67" 2>/dev/null | wc -l)"
+    [ "${proxy}" -ge 1 ] && check "ProxyDHCP" 0 "抓包可见 bootnet 自 ${LAB_IP}:67 发出的 Proxy OFFER ${proxy} 个" || check "ProxyDHCP" 1 "未见 ${LAB_IP}:67 的应答"
     r4011="$(tcpdump -nr "${D}/capture.pcap" 'udp port 4011' 2>/dev/null | wc -l)"
+    if [ "${r4011}" -ge 2 ]; then check "4011" 0 "抓包中 4011 端口报文 ${r4011} 个（REQUEST/ACK）"
+    else
+      # 偏差（见 step-13 第 8 节，Step 2 H2）：EDK2 PxeBc 与 iPXE 在 67 端口 OFFER 已含 Opt43/siaddr/file 时直接采用，
+      # 虚拟机不会发 4011 REQUEST。改为对一台已 arm 的节点用 pxe-client 构造 EDK2（Opt93=7）DISCOVER + 4011 REQUEST，
+      # 要求产品在 4011 回 ACK；报文同样记录在本场景抓包中。
+      local n4 out4="${D}/pxe-client-4011.log"
+      n4="$(register_node acc-b-4011 "$(mac_of 23)" uefi)"
+      api POST "/nodes/${n4}/arm" '{}' > /dev/null 2>&1 || true
+      sudo "${LAB_BIN}" pxe-client --iface "${BR}" --mac "$(mac_of 23)" --uefi > "${out4}" 2>&1 || true
+      api POST "/nodes/${n4}/disarm" '{}' > /dev/null 2>&1 || true
+      r4011="$(tcpdump -nr "${D}/capture.pcap" 'udp port 4011' 2>/dev/null | wc -l)"
+      grep -q 'ack-4011' "${out4}" && [ "${r4011}" -ge 2 ] \
+        && check "4011" 0 "虚拟机未发 4011（EDK2 直接采用 67 端口 OFFER，Step 2 H2）；构造的 4011 REQUEST 得到 ACK，抓包 4011 报文 ${r4011} 个" \
+        || check "4011" 1 "构造的 4011 REQUEST 未得到 ACK（抓包 4011 报文 ${r4011} 个）：$(head -c 300 "${out4}")"
+    fi
     tftp="$(tcpdump -nr "${D}/capture.pcap" -A 'udp port 69' 2>/dev/null | grep -c 'ipxe.efi' || true)"
-    [ "${r4011}" -ge 2 ] && check "4011" 0 "抓包中 4011 端口报文 ${r4011} 个（REQUEST/ACK）" || check "4011" 1 "4011 报文 ${r4011} 个"
     [ "${tftp}" -ge 1 ] && check "TFTP ipxe.efi" 0 "抓包可见 TFTP RRQ ipxe.efi" || check "TFTP ipxe.efi" 1 "未见 ipxe.efi 的 TFTP 读请求"
   fi
 }

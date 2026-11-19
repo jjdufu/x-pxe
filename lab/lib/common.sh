@@ -34,3 +34,32 @@ svc_stop() {
   local p; p="$(svc_pid "$1")"
   if [ -f "$p" ]; then sudo kill "$(cat "$p")" 2>/dev/null || true; rm -f "$p"; fi
 }
+
+# 实验室 APT 缓存容器 lab-acng。缓存目录挂在 ${WORK}/acng-cache（重建容器不丢缓存）。
+# 可选实验室环境变量（不影响产品默认值与 CI）：
+#   XPXE_LAB_APT_UPSTREAM=http://<内网镜像>/debian            deb.debian.org/debian 改从该镜像回源
+#   XPXE_LAB_APT_SECURITY_UPSTREAM=http://<内网镜像>/debian-security   deb.debian.org/debian-security 同上
+# 虚拟机侧的镜像源地址不变（10.77.0.1:3142/deb.debian.org/...），只改 acng 的回源。
+acng_upstream() { [ -z "${XPXE_LAB_APT_UPSTREAM:-}${XPXE_LAB_APT_SECURITY_UPSTREAM:-}" ] || echo "${XPXE_LAB_APT_UPSTREAM:-}|${XPXE_LAB_APT_SECURITY_UPSTREAM:-}"; }
+acng_current() { docker inspect -f '{{index .Config.Labels "xpxe.upstream"}}' lab-acng 2>/dev/null; }
+acng_run() {
+  local c="${WORK}/acng-cache" conf="${WORK}/acng-upstream.conf"
+  mkdir -p "${c}"
+  # 旧版本的容器把缓存放在容器内：重建前先拷出来
+  if docker ps -a --format '{{.Names}}' | grep -qx lab-acng; then
+    if ! docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' lab-acng | grep -q /var/cache/apt-cacher-ng; then
+      sudo docker cp lab-acng:/var/cache/apt-cacher-ng/. "${c}/" 2>/dev/null || true
+    fi
+    docker rm -f lab-acng >/dev/null 2>&1 || true
+  fi
+  : > "${conf}"
+  [ -n "${XPXE_LAB_APT_UPSTREAM:-}" ] && echo "Remap-xpxedeb: deb.debian.org/debian ; ${XPXE_LAB_APT_UPSTREAM%/}/" >> "${conf}"
+  [ -n "${XPXE_LAB_APT_SECURITY_UPSTREAM:-}" ] && echo "Remap-xpxesec: deb.debian.org/debian-security security.debian.org/debian-security ; ${XPXE_LAB_APT_SECURITY_UPSTREAM%/}/" >> "${conf}"
+  chmod a+r "${conf}"
+  docker run -d --name lab-acng -p "${LAB_IP}:3142:3142" --label "xpxe.upstream=$(acng_upstream)" \
+    -v "${c}:/var/cache/apt-cacher-ng" -v "${conf}:/etc/apt-cacher-ng/zz-xpxe-upstream.conf:ro" xpxe-lab/acng >/dev/null
+  # acng 在容器内以 apt-cacher-ng 用户写缓存
+  docker exec lab-acng sh -c 'chown -R apt-cacher-ng: /var/cache/apt-cacher-ng 2>/dev/null || true'
+}
+# 正在运行的 lab-acng 与当前回源设置一致时返回 0
+acng_matches() { docker ps --format '{{.Names}}' | grep -qx lab-acng && [ "$(acng_current)" = "$(acng_upstream)" ]; }

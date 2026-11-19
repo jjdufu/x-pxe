@@ -14,9 +14,9 @@ chmod 0700 "${ACC}"
 LAB_MIRROR_DIR=/deb.debian.org/debian
 apt_ok() { curl -s -m 30 -o /dev/null -w '%{http_code}' "http://${LAB_IP}:3142${LAB_MIRROR_DIR}/dists/trixie/Release" | grep -qx 200; }
 acng_up() {
-  apt_ok && return 0
-  docker rm -f lab-acng >/dev/null 2>&1 || true
-  docker run -d --name lab-acng -p "${LAB_IP}:3142:3142" xpxe-lab/acng >/dev/null
+  if docker ps --format '{{.Names}}' | grep -qx lab-acng; then acng_matches && apt_ok && return 0
+  elif [ -z "$(acng_upstream)" ]; then apt_ok && return 0; fi
+  acng_run
   sleep 2
   apt_ok && return 0
   log "lab-acng 回源失败，改用 apt-proxy.py"
@@ -185,7 +185,7 @@ prepare_product() {
   for k in ipxe_efi_x64:ipxe.efi ipxe_undionly:undionly.kpxe ipxe_snponly_x64:snponly.efi; do
     id="$(upload_ipxe "${k%%:*}" "/usr/lib/ipxe/${k##*:}")"; activate "${k%%:*}" "${id}"
   done
-  id="$(api POST /assets/fetch '{"kind":"debian_netboot_amd64","mirror":"http://deb.debian.org/debian"}' | jq -r .id)"
+  id="$(api POST /assets/fetch "$(jq -n --arg m "${XPXE_LAB_NETBOOT_MIRROR:-http://deb.debian.org/debian}" '{kind:"debian_netboot_amd64",mirror:$m}')" | jq -r .id)"
   activate debian_netboot_amd64 "${id}"
   set_id netboot "${id}"
   set_id profile "$(create_config profile lab-dhcp "$(profile_doc lab-dhcp)")"

@@ -318,9 +318,9 @@ sc_G1() {
 LAB_MIRROR='/mirror={"scheme":"http","host_port":"10.77.0.1:3142","directory":"/deb.debian.org/debian"}'
 apt_ok() { curl -s -m 30 -o /dev/null -w '%{http_code}' "http://${LAB_IP}:3142/deb.debian.org/debian/dists/trixie/Release" | grep -qx 200; }
 acng_up() { # 优先 apt-cacher-ng 容器；宿主网络下它回源失败（HTTP 500）时换成 lab/lib/apt-proxy.py
-  apt_ok && return 0
-  docker rm -f lab-acng >/dev/null 2>&1 || true
-  docker run -d --name lab-acng -p "${LAB_IP}:3142:3142" xpxe-lab/acng >/dev/null
+  if docker ps --format '{{.Names}}' | grep -qx lab-acng; then acng_matches && apt_ok && return 0
+  elif [ -z "$(acng_upstream)" ]; then apt_ok && return 0; fi
+  acng_run
   sleep 2
   apt_ok && return 0
   log "lab-acng 回源失败，改用 apt-proxy.py"

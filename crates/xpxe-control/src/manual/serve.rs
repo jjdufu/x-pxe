@@ -105,7 +105,7 @@ async fn menu(State(app): State<Arc<App>>, Query(query): Query<MenuQuery>) -> Ou
     let row = app.store.nodes().by_mac(mac)?;
     if !menu.shows_for(mac, row.is_some()) {
         return Ok(ipxe(
-            "#!ipxe\necho x-pxe: manual menu not enabled for this machine\nsleep 3\nexit\n"
+            "#!ipxe\necho x-pxe: manual menu not enabled for this machine\nsleep 3\nexit 1\n"
                 .to_owned(),
         ));
     }

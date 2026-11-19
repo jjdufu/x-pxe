@@ -4,6 +4,7 @@
 # Step 8 场景（需 --bootnet）：rogue-proxy（先 lab/dhcp.sh start rogue）| redfish-only-ports
 # Step 9 场景：R1/R2（--iso <boot.iso> 覆盖 R1 的会话 ISO）| redfish-bios-reject | redfish-pin-change
 # Step 4 装机场景：install-uefi | install-bios | install-static（完整跑完 d-i 并从系统盘重启）
+# Step 14 手动 ISO 网络引导：manual-sanboot | manual-pve（交给 lab/manual.sh，部署被测镜像，选项见该脚本）
 # Step 5 初始化等价性：init-equivalence [--plan <plan.json>] [--legacy <脚本>]（lab/lib/init-equivalence.sh）
 # 每个场景输出 PASS/FAIL、耗时与日志目录（lab/out/<场景>/）。
 source "$(dirname "$0")/lib/common.sh"
@@ -494,6 +495,7 @@ case "$1" in
   init-equivalence) shift; services noproxy; acng_up; ieq_main "$@"; exit 0 ;;
   services) services "${2:-proxy}"; exit 0 ;;
   stop-services) stop_services; exit 0 ;;
+  manual-sanboot|manual-pve) exec "$(dirname "$0")/manual.sh" "$@" ;;
   install-all) set -- install-uefi install-bios install-static ;;
   all) set -- B1 B2 B3 B4 B5 B6 U1 U2 U3 U4 U5 U6 W1 W2 N1 N2 H9a H9b ;;
 esac

@@ -99,3 +99,12 @@
 - 验收：scripts/gate.sh 全绿；web-gate：Vitest 92、Playwright 65（本机深色对比度 4 组为既有环境问题，CI 绿）；integration.spec.ts 8 步通过；§5 截图在 docs/plan/assets/step-12/。
 - 偏差见 docs/plan/step-12-webui-pages.md 第 7 节。
 - 用户决定：第 12 步完成后暂停。第 13 步未开始。续做：docs/plan/step-13-*.md。
+
+## 更新 2026-11-20 Asia/Shanghai（step13 完成）
+- 测试机实验室环境：PVE 上的 Debian 13 虚拟机 host-p02（嵌套 KVM 可用，100 GB 磁盘），经用户 Mac 跳板 SSH 访问；上行约 10 Mbit/s，实验室用 `xpxe-ratelimit` 服务把下载限到约 9 Mbit/s；
+  客户机内 Debian 安装源与 APT 缓存回源走局域网 Nexus 代理（只在测试机的实验室环境变量里设置，不进入产品默认值与 CI）。镜像与二进制都在测试机本地构建，未从 box 传输构建产物。
+- 验收记录 docs/acceptance/2026-11-19.md：A–M、O、P 在测试机（KVM）上以 `scripts/accept.sh --fresh` 全量连跑通过（accept-8，被测镜像 x-pxe:d8f02f7）；
+  N 在测试机上因 snapshot.debian.org 经测试机出口不可达而失败，改在 box 上通过；Q/R 在 box 上通过（web-gate + 联调 8 步；gate + cargo deny + 镜像 23 MiB）。d8f02f7 之后的提交只改实验室脚本与文档。
+- 验收中发现并修复的产品问题：iPXE 回落改为 `exit 1`（EDK2 收到 EFI_SUCCESS 会停在 UiApp）；会话 preseed 已取走后 `/p/{token}/boot.ipxe` 返回 `exit 1`（sushy 弹出介质不即时生效，热重启会再进安装器）。
+- 实验室脚本修复：F/G sushy 启动函数位置、F 证书变化检查改用 rearm、G 等 agent 重启后再登录、A/B installed 记录每次清空、G 提前返回恢复 DHCP、accept.sh 每次以 coexist 重启现网 DHCP 替身、M 零出站规则按 DNAT 前目的地址判定、N 获取重试。偏差见 step-13 第 8 节。
+- 未自动化的部分：docs/ops.md 由未参与开发的人员照做一次（第 7 节最后一条），待人工完成。

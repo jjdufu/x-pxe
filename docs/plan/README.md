@@ -353,7 +353,7 @@ pub struct BootDirective { mac: MacAddr, session: SessionId, boot_url: BootUrl, 
 | 10 | [step-10-control-plane.md](./step-10-control-plane.md) | `xpxe-control`：三个监听、认证、事件、定时器、SSE、`xpxe-e2e` | `cargo test -p xpxe-e2e` + gate | 已完成 |
 | 11 | [step-11-webui-foundation.md](./step-11-webui-foundation.md) | WebUI 基座、Token、Theme Editor、组件库 | `scripts/web-gate.sh` | 已完成 |
 | 12 | [step-12-webui-pages.md](./step-12-webui-pages.md) | 全部业务页面与联调 | `scripts/web-gate.sh` + 联调清单 | 已完成 |
-| 13 | [step-13-deploy-and-acceptance.md](./step-13-deploy-and-acceptance.md) | 镜像、Compose、验收场景 | `scripts/accept.sh` | 未开始 |
+| 13 | [step-13-deploy-and-acceptance.md](./step-13-deploy-and-acceptance.md) | 镜像、Compose、验收场景 | `scripts/accept.sh` | 已完成 |
 | 14 | [step-14-manual-iso-netboot.md](./step-14-manual-iso-netboot.md) | WebUI 上传 ISO + 可编辑 iPXE 引导菜单（状态机之外的手动装机）、sanboot、Rust 抽取内核/initrd 并把 ISO 打进 initrd | `lab/run.sh manual-sanboot manual-pve` + gate + web-gate | 未开始 |
 
 实施进度日志（提交、CI 运行号、偏差、实验室记录）见 [progress.md](./progress.md)，每步结束时同步更新。v1 发版条件：Step 13 与 Step 14 的验收均通过。

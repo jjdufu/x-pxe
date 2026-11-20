@@ -446,13 +446,13 @@ sc_N() {
   # 经 /assets/fetch 走同样的 InRelease 签名链校验后激活，arm 必须被拒绝。
   # （snapshot 的 http 入口返回 500，https 入口 302 到 /file/<sha>，产品客户端可跟随；/assets/upload 只接受 iPXE 固件。）
   local old r0
-  # snapshot.debian.org 经慢速出口时偶发数据帧超时：最多试 3 次
+  # snapshot.debian.org 经慢速出口时偶发数据帧超时或连接失败：最多试 3 次
   local try
   for try in 1 2 3; do
     r0="$(api POST /assets/fetch '{"kind":"debian_netboot_amd64","mirror":"https://snapshot.debian.org/archive/debian/20250815T000000Z"}' || true)"
     old="$(jq -r '.id // empty' <<< "${r0}" 2> /dev/null || true)"
-    [ -z "${old}" ] && grep -q TIMEOUT <<< "${r0}" || break
-    log "旧 netboot 获取超时（第 ${try} 次），重试"
+    [ -z "${old}" ] && grep -qE 'TIMEOUT|client error \(Connect\)' <<< "${r0}" || break
+    log "旧 netboot 获取超时或连接失败（第 ${try} 次），30 秒后重试"; sleep 30
   done
   if [ -z "${old}" ]; then check "旧 netboot" 1 "获取失败：${r0:0:200}"; return; fi
   check "旧 netboot" 0 "获取 snapshot 20250815 netboot（资产 ${old}，ABI $(jq -r .kernel_abi <<< "${r0}")）"

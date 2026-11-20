@@ -209,4 +209,4 @@ lab/net.sh down                                           # 恢复 box 网络
 | Q 场景 | `scripts/web-gate.sh` 全量 + Step 12 联调用例（`integration.spec.ts`，在 `webui-stack` 上运行，与镜像同一份源码构建） | 联调脚本依赖 `xpxe-lab simulate-install` 与独立数据目录，不直接对 compose 部署运行；被测镜像的 WebUI 静态资源由 P 场景的 HTTP/HTTPS 检查与 A–M 的 API 流程覆盖 |
 | CI 中的 Web 门禁 | 修复深色模式下选中单选卡片副标题对比度不足（sand/neutral/slate dark，`.radio-card-sub` 在 `accent-soft` 底色上 4.23:1） | 首次推送本步提交时 CI Web 门禁暴露，改为正文色 |
 | `docs/ops.md` 人工照做 | 未完成 | 需要未参与开发的人员照做一次并登录，智能体无法代替；留给用户安排 |
-| 发布 | 未打 tag、未建 Release、未推送镜像 | 按用户约束；`x-pxe:<describe>` 只在 box 本地构建 |
+| 发布 | 2026-11-20 经用户批准发布 v1.0.0：标签 `v1.0.0`（c4ee0f5），release 工作流推送 `dex2all/xpxe:v1.0.0` 与 `latest`（`sha256:6fba6faa9527…`），GitHub Release 手动创建 | 验收期间按用户约束不打 tag、不发布；release 工作流只推镜像，不建 Release |

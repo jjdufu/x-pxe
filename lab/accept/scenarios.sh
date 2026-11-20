@@ -424,18 +424,19 @@ sc_L() {
 
 # ---------- M：离线 ----------
 sc_M() {
-  local CHAIN=(DOCKER-USER -s 172.30.77.0/24 ! -d 10.77.0.0/24 -m conntrack --ctstate NEW -j REJECT)
+  # 按 DNAT 之前的原始目的地址判定：发往 10.77.0.1:3142 的连接会被 docker 端口映射改写成 lab-acng 的容器地址
+  local CHAIN=(DOCKER-USER -s 172.30.77.0/24 -m conntrack --ctstate NEW ! --ctorigdst 10.77.0.0/24 -j REJECT)
   deploy_down; deploy_up true
-  sudo iptables -I "${CHAIN[@]}" 2>/dev/null || sudo iptables -I DOCKER-USER -s 172.30.77.0/24 ! -d 10.77.0.0/24 -m conntrack --ctstate NEW -j REJECT
+  sudo iptables -I "${CHAIN[@]}" 2>/dev/null || sudo iptables -I DOCKER-USER -s 172.30.77.0/24 -m conntrack --ctstate NEW ! --ctorigdst 10.77.0.0/24 -j REJECT
   sudo iptables -Z DOCKER-USER 1   # 只清零刚插入的第 1 条规则，不动其他栈的计数
   local fetch; fetch="$(api POST /assets/fetch '{"kind":"ipxe_efi_x64"}' || true)"
   grep -qi 'offline\|离线' <<< "${fetch}" && check "官方获取禁用" 0 "$(jq -r '.message // .error.message // .' <<< "${fetch}" | cut -c1-100)" || check "官方获取禁用" 1 "${fetch:0:200}"
   local id; id="$(upload_ipxe ipxe_efi_x64 /usr/lib/ipxe/ipxe.efi)"
   activate ipxe_efi_x64 "${id}" "离线验收" && check "上传可激活" 0 "离线模式上传 ipxe.efi 并激活（资产 ${id}）" || check "上传可激活" 1 "激活失败"
   install_node M-uefi acc-m-uefi uefi ovmf e1000e "$(mac_of c1)" tap0 && [ -n "${IP}" ] && check_packages "${IP}" m
-  local rejects; rejects="$(sudo iptables -L DOCKER-USER -v -n -x | awk '/172.30.77.0\/24/ && /REJECT/ {print $1}' | head -1)"
+  local rejects; rejects="$(sudo iptables -L DOCKER-USER -v -n -x | awk '/172.30.77.0\/24/ && /REJECT/ && /ctorigdst/ {print $1}' | head -1)"
   [ "${rejects:-x}" = 0 ] && check "零出站" 0 "DOCKER-USER REJECT 计数 0" || check "零出站" 1 "REJECT 计数 ${rejects:-规则缺失}"
-  sudo iptables -D DOCKER-USER -s 172.30.77.0/24 ! -d 10.77.0.0/24 -m conntrack --ctstate NEW -j REJECT 2>/dev/null || true
+  sudo iptables -D DOCKER-USER -s 172.30.77.0/24 -m conntrack --ctstate NEW ! --ctorigdst 10.77.0.0/24 -j REJECT 2>/dev/null || true
   deploy_down; deploy_up false
 }
 
@@ -445,8 +446,14 @@ sc_N() {
   # 经 /assets/fetch 走同样的 InRelease 签名链校验后激活，arm 必须被拒绝。
   # （snapshot 的 http 入口返回 500，https 入口 302 到 /file/<sha>，产品客户端可跟随；/assets/upload 只接受 iPXE 固件。）
   local old r0
-  r0="$(api POST /assets/fetch '{"kind":"debian_netboot_amd64","mirror":"https://snapshot.debian.org/archive/debian/20250815T000000Z"}' || true)"
-  old="$(jq -r '.id // empty' <<< "${r0}" 2> /dev/null || true)"
+  # snapshot.debian.org 经慢速出口时偶发数据帧超时：最多试 3 次
+  local try
+  for try in 1 2 3; do
+    r0="$(api POST /assets/fetch '{"kind":"debian_netboot_amd64","mirror":"https://snapshot.debian.org/archive/debian/20250815T000000Z"}' || true)"
+    old="$(jq -r '.id // empty' <<< "${r0}" 2> /dev/null || true)"
+    [ -z "${old}" ] && grep -q TIMEOUT <<< "${r0}" || break
+    log "旧 netboot 获取超时（第 ${try} 次），重试"
+  done
   if [ -z "${old}" ]; then check "旧 netboot" 1 "获取失败：${r0:0:200}"; return; fi
   check "旧 netboot" 0 "获取 snapshot 20250815 netboot（资产 ${old}，ABI $(jq -r .kernel_abi <<< "${r0}")）"
   activate debian_netboot_amd64 "${old}" "ABI 不一致验收"

@@ -144,3 +144,4 @@ lab/run.sh manual-pve         # PVE 9.2 ISO：kernel_initrd + embed_iso，UEFI �
 | 路径 `Combobox` | 编辑抽屉中内核/initrd 路径用原生 `<input list>` + `<datalist>`（候选来自 `/isos/{sha}/tree` 的文件），可自由输入 | 组件库只有多选 `MultiCombobox`；datalist 原生可键盘操作且离线 |
 | 保存差异与回滚 | 保存走 `SingletonSave`（变更说明 + 版本链）；差异与回滚在“配置历史”页（新增 `boot_menu` 类型标签） | 与其他单例配置一致，不在菜单页重复实现 |
 | 菜单入口链路 | 按 3.2 节：bootnet 对未武装 MAC 照常不应答，手动通道依赖现网 DHCP 指向 `/boot.ipxe`（`external_dhcp` + 产品 Kea 片段）；ProxyDHCP 模式下未武装机器不会进入菜单 | 与方案一致，在此明确：实验室场景用 `external_dhcp` |
+| 实验室判定（验收中发现并修复） | `manual-pve` 只在内核 `Run /init` 之后的串口输出里找安装器标志；`lab/run.sh manual-*` 结束时把现网 DHCP 替身恢复为 `coexist` | iPXE 菜单标题 “Proxmox VE 9.2” 会让原判定在内核启动前就误判通过；manual 运行留下的 product 配置会让随后的 `scripts/accept.sh` 进入 proxy_dhcp 时报冲突 |

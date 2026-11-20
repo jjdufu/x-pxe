@@ -42,13 +42,13 @@ QEMU 自带的网卡 Option ROM（Debian `ipxe-qemu` 包，文件在 `/usr/share
 
 ## Step 14：手动 ISO 网启（`lab/run.sh manual-sanboot manual-pve`）
 
-测试机：Debian 13 虚拟机（PVE 上开启嵌套 KVM），QEMU 10.0，OVMF 与 SeaBIOS 均来自 Debian 包。引导链路按计划 3.2 节：bootnet 为 `external_dhcp`，现网 DHCP（`lab-dhcp` + 产品生成的 Kea 片段）把 iPXE 指向 `/boot.ipxe`；节点不在 Armed 快照中，走手动菜单。
+测试机：Debian 13 虚拟机（PVE 上开启嵌套 KVM），QEMU 10.0，OVMF 与 SeaBIOS 均来自 Debian 包。被测镜像 x-pxe:d1fe97d（测试机本地构建），2026-11-20 运行：sanboot 54 秒、PVE 573 秒。引导链路按计划 3.2 节：bootnet 为 `external_dhcp`，现网 DHCP（`lab-dhcp` + 产品生成的 Kea 片段）把 iPXE 指向 `/boot.ipxe`；节点不在 Armed 快照中，走手动菜单。
 
 | # | 固件 / 网卡 | ISO 与方式 | 结果 | 证据 |
 | :--- | :--- | :--- | :--- | :--- |
 | M1 | OVMF × virtio-net | Debian `ipxe.iso`（识别为 unknown），`sanboot` HTTP 块设备 | 通过 | `lab/out/accept/manual-sanboot/`：串口 `Booting from SAN device 0x80`，随后进入 ISO 内 iPXE；审计 `select` 后再次 `menu_hit` |
 | M2 | SeaBIOS × virtio-net | 同 M1 | 通过（证据为审计） | SeaBIOS 下 iPXE 不输出串口；审计 `select` 后约 7 秒再次 `menu_hit`（ISO 内 iPXE 重新请求菜单） |
 | M3 | OVMF × virtio-net，8 GiB 内存 | Proxmox VE 9.2 ISO（识别为 PVE，预填 `/boot/linux26` + `/boot/initrd.img`），`kernel_initrd` + `embed_iso` | 通过 | `lab/out/accept/manual-pve/`：内核 `Run /init` 之后串口出现 `Starting the installer GUI`，无 `no cdrom found` |
-| M4 | SeaBIOS × virtio-net，8 GiB 内存 | 同 M3 | 通过 | 串口 `Welcome to the Proxmox VE 9.2 (ISO 1) installer!`，无 `no cdrom found` |
+| M4 | SeaBIOS × virtio-net，8 GiB 内存 | 同 M3 | 通过 | 内核 `Run /init` 之后串口出现 `Starting the installer GUI`，无 `no cdrom found` |
 
 说明：`embed_iso` 把整张 ISO（约 1.6 GiB）拼进 initrd，客户机内存需不少于 8 GiB，内核参数带 `ramdisk_size=16777216`。厂商固件对 HTTP `sanboot` 的支持差异不在实验室覆盖范围内，遇到不支持的固件时把条目切换为 `kernel_initrd`。

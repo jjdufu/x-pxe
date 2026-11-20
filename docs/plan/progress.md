@@ -108,3 +108,11 @@
 - 验收中发现并修复的产品问题：iPXE 回落改为 `exit 1`（EDK2 收到 EFI_SUCCESS 会停在 UiApp）；会话 preseed 已取走后 `/p/{token}/boot.ipxe` 返回 `exit 1`（sushy 弹出介质不即时生效，热重启会再进安装器）。
 - 实验室脚本修复：F/G sushy 启动函数位置、F 证书变化检查改用 rearm、G 等 agent 重启后再登录、A/B installed 记录每次清空、G 提前返回恢复 DHCP、accept.sh 每次以 coexist 重启现网 DHCP 替身、M 零出站规则按 DNAT 前目的地址判定、N 获取重试。偏差见 step-13 第 8 节。
 - 未自动化的部分：docs/ops.md 由未参与开发的人员照做一次（第 7 节最后一条），待人工完成。
+
+## 更新 2026-11-20 Asia/Shanghai（step14 完成）
+- 提交：第 14 步（一）至（十四），在 Step 13 合入 main 之后 rebase 并快进合入 main。
+- 内容：ISO 分块上传（8 MiB、断点续传、配额 413/507）、族识别（PVE 系预填 `/boot/linux26` + `/boot/initrd.img` + `embed_iso`）、Rust 抽取内核/initrd 并把整张 ISO 拼进 initrd、
+  `/m/*` 供 Range 的 HTTP 块设备（sanboot）、可编辑的手动 iPXE 菜单（版本链、预览、审计 menu_hit/select）、WebUI“ISO 镜像”标签页与“手动引导菜单”页。
+- 验收：scripts/gate.sh、scripts/web-gate.sh 通过；测试机（KVM）上 `lab/run.sh manual-sanboot manual-pve` 通过（PVE 9.2 ISO SHA-256 4e88fe416df9b527624a175f24c9aa07c714d3332afb1ee3dbf3879573ef2c6c，
+  OVMF 与 SeaBIOS 各一台进入安装器，无 “no cdrom found”）。兼容性结果见 docs/lab/compat-matrix.md 的 Step 14 一节，偏差见 step-14 第 7 节。
+- 发布条件（Step 13 与 Step 14 验收均通过）已满足；按要求未打 tag、未发布、未推送镜像。
